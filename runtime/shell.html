@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cairn</title>
+<style>
+/*CAIRN_CSS*/
+</style>
+</head>
+<body>
+<main id="app">
+  <h1 id="title"></h1>
+  <div id="intro"></div>
+  <ul id="sources"></ul>
+
+  <div class="progress">
+    <div class="track"><div class="fill" id="bar"></div></div>
+    <div class="label" id="pct"></div>
+  </div>
+
+  <div id="banner" hidden>
+    Loaded progress from a link.
+    <button type="button" id="banner-keep">Keep it</button>
+    <button type="button" id="banner-revert">Revert to my saved progress</button>
+  </div>
+
+  <div class="controls">
+    <label for="view">View</label>
+    <select id="view"></select>
+    <span class="muted" id="goalinfo"></span>
+  </div>
+
+  <div id="tasks"></div>
+
+  <details id="panel">
+    <summary>Progress: share, restore, snapshots</summary>
+    <p class="muted">The token holds your checkmarks and notes. Paste a token here and click Restore to load it. The link copies checkmarks only.</p>
+    <textarea id="token" rows="3" spellcheck="false"></textarea>
+    <div class="row">
+      <button type="button" id="copytoken">Copy token</button>
+      <button type="button" id="restore">Restore from token</button>
+      <button type="button" id="copylink">Copy link</button>
+      <button type="button" id="savesnap">Save snapshot</button>
+      <button type="button" id="reset">Reset</button>
+    </div>
+    <h3>Snapshots</h3>
+    <p class="muted">Saved automatically every 5 minutes when something changed: 5-minute steps for an hour, hourly for a day, daily for a week, weekly for a year.</p>
+    <ul id="snaplist"></ul>
+  </details>
+</main>
+<div id="toast" hidden></div>
+<script id="cairn-path" type="application/json">/*CAIRN_PATH*/</script>
+<script>
+/*CAIRN_JS*/
+</script>
+</body>
+</html>
