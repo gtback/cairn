@@ -72,12 +72,49 @@ try {
   check('renders 6 tasks in recommended order',
     JSON.stringify(await p.ev('[...document.querySelectorAll("article.task")].map(a=>a.dataset.id)')) ===
     JSON.stringify(['install', 'identity', 'fields', 'select', 'pipes', 'reshape']));
+  check('section headings with counts and time',
+    JSON.stringify(await p.ev('[...document.querySelectorAll(".sectionhead")].map(h=>h.textContent)')) ===
+    JSON.stringify(['Getting started 2 tasks · 25m', 'Filters 3 tasks · 50m', 'Building output 1 task · 30m']),
+    await p.ev('[...document.querySelectorAll(".sectionhead")].map(h=>h.textContent)'));
   check('title and intro', await p.ev('document.getElementById("title").textContent') === 'Learn jq' &&
     (await p.ev('document.getElementById("intro").textContent')).includes('cairn'));
   check('image rendered', await p.ev('(()=>{const i=document.querySelector("#t-identity img");return !!i && i.complete && i.naturalWidth>0})()'));
   check('code blocks have copy buttons', await p.ev('document.querySelectorAll("#t-install .code .copy").length') === 3);
   check('blocked-by hint shows for identity', (await p.ev('document.querySelector("#t-identity .blocked").textContent')).includes('Install jq'));
   check('initial hash is empty progress', await p.ev('location.hash') === '#v1.1.');
+
+  // Answers: hidden behind a reveal, switchable at page level.
+  check('answer control visible when the path has answers', await p.ev('!document.getElementById("answers-control").hidden'));
+  check('answers render closed by default', await p.ev('document.querySelectorAll("details.answer").length') === 13 &&
+    await p.ev('document.querySelectorAll("details.answer[open]").length') === 0, await p.ev('document.querySelectorAll("details.answer").length'));
+  await p.ev('document.querySelector("#t-identity details.answer summary").click()');
+  check('clicking Show answer opens it', await p.ev('document.querySelector("#t-identity details.answer").open') &&
+    (await p.ev('document.querySelector("#t-identity details.answer .answer-body").textContent')).includes('looks up the key'));
+  await p.ev('(()=>{const c=document.getElementById("answers"); c.checked=false; c.dispatchEvent(new Event("change",{bubbles:true}));})()');
+  check('disabling answers hides every reveal button', await p.ev('[...document.querySelectorAll("details.answer")].every(d=>getComputedStyle(d).display==="none")'));
+  await p.ev('window.dispatchEvent(new Event("beforeprint"))');
+  check('printing with answers disabled opens nothing',
+    await p.ev('document.querySelectorAll("details.answer[open]").length') === 1 &&
+    await p.ev('getComputedStyle(document.querySelector("#t-identity details.answer")).display') === 'none');
+  await p.ev('window.dispatchEvent(new Event("afterprint"))');
+  await p.ev('(()=>{const c=document.getElementById("answers"); c.checked=true; c.dispatchEvent(new Event("change",{bubbles:true}));})()');
+  check('re-enabling shows the buttons without opening other answers',
+    await p.ev('getComputedStyle(document.querySelector("details.answer")).display') !== 'none' &&
+    await p.ev('document.querySelectorAll("details.answer[open]").length') === 1);
+  await p.ev('window.dispatchEvent(new Event("beforeprint"))');
+  check('printing with answers enabled opens every answer', await p.ev('[...document.querySelectorAll("details.answer")].every(d=>d.open)'));
+  await p.ev('window.dispatchEvent(new Event("afterprint"))');
+  check('after printing, reveal state is restored',
+    await p.ev('document.querySelectorAll("details.answer[open]").length') === 1 && await p.ev('document.querySelector("#t-identity details.answer").open'));
+  await p.ev('document.querySelector("#t-identity details.answer summary").click()');
+
+  // Routes panel.
+  check('routes panel is collapsed', await p.ev('document.getElementById("routes").open') === false);
+  check('routes matrix has a row per task and a column per route',
+    await p.ev('document.querySelectorAll("table.routes tr").length') === 7 &&
+    await p.ev('document.querySelectorAll("table.routes th button").length') === 3);
+  check('routes legend shows totals', (await p.ev('document.querySelector("#routes .legend").textContent')).includes('Rec Recommended flow: 1h45m'),
+    await p.ev('document.querySelector("#routes .legend").textContent'));
 
   // Check a box.
   await p.ev('document.querySelector("#t-install input[data-mode=do]").click()');
@@ -118,6 +155,9 @@ try {
   check('test-out marks all modes done', await p.ev('[...document.querySelectorAll("#t-identity input[data-mode]")].every(c=>c.checked)'));
   check('view persists across reload', true);
   await p.ev('(()=>{const s=document.getElementById("view"); s.value="recommended"; s.dispatchEvent(new Event("change",{bubbles:true}));})()');
+
+  await p.ev('document.querySelector("table.routes th button[data-route=report]").click()');
+  check('clicking a route column switches the view', await p.ev('document.getElementById("view").value') === 'report');
 
   // Token round-trip including notes.
   await sleep(300);

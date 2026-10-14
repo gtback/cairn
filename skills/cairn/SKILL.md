@@ -40,7 +40,9 @@ Do not recreate the tooling.
    learning-style or modality preferences.
 2. **Intake.** Ask for: the topic, the sources, who the path is for (just them
    or shared), concrete goals ("be able to ..."), the time budget, and where to
-   write output. Suggest `<dir>/<path-id>/` but confirm the location each time.
+   write output. Suggest a root (default `~/learning-paths`, or the root set in
+   the profile) with the source in `<root>/<path-id>/` and the built page as its
+   sibling `<root>/<path-id>.html`. Confirm the location each time.
 3. **Gather.** Read every source in full.
    - Classify each link as repo, pipeline, doc, dashboard, or other. Do not
      assume a name is a repository.
@@ -58,11 +60,11 @@ Do not recreate the tooling.
    adjust it before writing files.
 6. **Write.** Create the path directory. Keep task ids short, lowercase and
    stable. Put prose in `tasks/<id>.md`, structure and commands in `path.json`.
-7. **Build.** Run `python3 "$CAIRN_HOME/tools/build.py" <path-dir> -o <path-dir>/index.html`.
+7. **Build.** Run `python3 "$CAIRN_HOME/tools/build.py" <root>/<path-id> -o <root>/<path-id>.html`.
    Fix every reported error. Review warnings (oversized tasks, ordering) with
    the user. Report the output path and how to share it.
 8. **Update later.** Edit in place, keep ids stable, bump `version` when tasks
-   are added, removed or renamed, and rebuild. Warn before renaming an id:
+   are added, removed or renamed, and rebuild to the same sibling `.html`. Warn before renaming an id:
    progress saved under the old id is dropped.
 
 ## Sharing
@@ -77,3 +79,4 @@ decision. Do not upload or host anything unprompted.
 - Invent links, repo names, or commands. Verify or omit.
 - Write tasks over 60 minutes or with no way to tell when they are done.
 - Add an `explain` mode without a prompt that can be answered from memory.
+- Leave predict, explain or modify prompts without a verified answer (see [references/authoring.md](references/authoring.md)).

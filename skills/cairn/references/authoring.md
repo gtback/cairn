@@ -24,6 +24,16 @@ Combine them where it fits: `read` + `explain` for concepts, `do` + `explain` fo
 - **modify**: a change to what was just run, with an outcome you can check. "Print the name without quotes" beats "experiment".
 - **explain**: phrased as an explanation, not a recall list. "Walk through how X evaluates Y" beats "list the parts of X".
 
+## Answers
+
+Put an answer under `answers` (or a step's `answer`) for every `predict`, `explain`, `modify` and any `elaborate` that has a definite answer. They are hidden until asked for, so the learner commits to a response first and then gets feedback.
+
+- Write the answer as a reference a learner can check themselves against: the key points, not a model essay. Two to four sentences or one command.
+- For `explain`, list the ideas a good answer must contain; for `modify`, give the command or change and what it should output.
+- Verify each answer the way you verify a command: run it, or tie it to a source you have read. If you cannot, say so in the answer text.
+- If the sources disagree, the answer states the disagreement instead of picking a side.
+- A step `answer` needs a step `predict`. The build errors otherwise, and warns when an `explain` prompt has no answer.
+
 ## Experienced learners
 
 Compress or skip basics (the profile says which). Prefer modify, debug and trace tasks over step-by-step recipes. Put prerequisite checks behind the "I already know this" test-out rather than deleting them.

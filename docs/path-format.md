@@ -55,7 +55,11 @@ A task is a unit of 5–60 minutes of learning. The build warns above 60 minutes
   "steps": [{"text": "Keep only ok items.", "predict": "How many survive?", "cmd": "jq ..."}],
   "links": [{"label": "Manual", "url": "https://..."}],
   "modify": "Change the filter so it keeps the opposite items.",
-  "explain": "Explain the difference between `.[]` and `map(...)`."
+  "explain": "Explain the difference between `.[]` and `map(...)`.",
+  "answers": {
+    "modify": "`map(select(.ok | not))`",
+    "explain": "`.[]` streams the elements; `map(...)` collects results into an array."
+  }
 }
 ```
 
@@ -70,11 +74,26 @@ A task is a unit of 5–60 minutes of learning. The build warns above 60 minutes
 | `prereqs` | no | Task ids. Cycles and unknown ids are errors. |
 | `predict` | no | A question to answer *before* reading or running. |
 | `elaborate` | no | A "why does this work?" prompt shown after the body. |
-| `steps` | no | Ordered `{text, cmd?, predict?}`. `cmd` gets a Copy button. |
+| `steps` | no | Ordered `{text, cmd?, predict?, answer?}`. `cmd` gets a Copy button. `answer` is the hidden answer to the step's `predict` (an error without one). |
 | `links` | no | `{label, url}`, `http(s)` or `mailto`. |
 | `modify` | no | A closing challenge: change what you just ran. |
+| `answers` | no | Hidden answers, keyed by the prompt they answer: `predict`, `elaborate`, `modify`, `explain`. Each value is a markdown string. A key needs its prompt to exist. The build warns when an `explain` prompt has no `answers.explain`. |
 | `noteprompts` | no | Labels for the notes fields. Default: "In my words", "What surprised me", "Open question". |
 | `body` | no | Inline markdown, used only when `tasks/<id>.md` does not exist. |
+
+## Section headings
+
+When a path has `sections`, the task list shows a heading before each run of tasks in the same section, with the run's task count and total estimate. A route that visits a section in two separate runs gets two headings, so keep `recommended` in section order. Tasks without a section get no heading.
+
+## Answers
+
+Answers sit behind a **Show answer** link under their prompt, so the learner attempts first. The page has an **Enable answers** checkbox (on by default) that shows or hides those links; it never reveals an answer itself. Turn it off to test yourself with no answers in view. It appears only when the path has answers, is remembered per path in the browser, and is not part of the hash or token.
+
+Printing produces a clean reference copy in light colors: progress, notes, "blocked by" hints, controls and the routes panel are left out, and long commands wrap. When printing, answers are included, all expanded, if **Enable answers** is on, and left out if it is off. Answers are markdown with the same subset as task bodies, and relative images are inlined.
+
+## Routes panel
+
+Every page has a collapsed **Routes through this path** panel: a matrix of tasks against the recommended flow and each goal (● the route's own task, ○ a prerequisite pulled in), with the total time and time left per route. Clicking a column switches the view; clicking a task jumps to it. It is generated from `tasks`, `goals`, `recommended` and `estimate`; there is nothing to author.
 
 ## Markdown
 
@@ -84,6 +103,7 @@ Task bodies and the intro support a small subset:
 - flat bulleted and numbered lists
 - fenced code blocks (with a Copy button), inline code
 - `**bold**`, `*italic*`, `[links](https://...)`
+- pipe tables: a header row, a `|---|---|` separator row, then body rows. Cells take inline markup; write `\|` for a literal pipe (pipes inside inline code are kept). Alignment markers are ignored.
 - images: `![alt](assets/file.png)`. Relative images are read at build time and inlined as data URIs (png, jpg, gif, webp, svg).
 
 All other HTML is escaped. Links must be `http(s)`, `mailto`, or `#anchors`.

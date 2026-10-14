@@ -65,7 +65,26 @@
       '<button type="button" class="copy">Copy</button></div>';
   }
 
-  const BLOCK_START = /^(```|#{1,3}\s|\s*[-*]\s+|\s*\d+\.\s+)/;
+  const BLOCK_START = /^(```|#{1,3}\s|\s*[-*]\s+|\s*\d+\.\s+|\s*\|)/;
+  const TABLE_ROW = /^\s*\|.*\|\s*$/;
+  const TABLE_SEP = /^\s*\|(\s*:?-{3,}:?\s*\|)+\s*$/;
+
+  // Split a pipe-table row into cells. `\|` and pipes inside inline code stay in the cell.
+  function tableCells(line) {
+    const s = line.trim().replace(/^\|/, '').replace(/\|$/, '');
+    const cells = [];
+    let cur = '';
+    let code = false;
+    for (let i = 0; i < s.length; i++) {
+      const c = s[i];
+      if (c === '\\' && s[i + 1] === '|') { cur += '|'; i++; continue; }
+      if (c === '`') code = !code;
+      if (c === '|' && !code) { cells.push(cur.trim()); cur = ''; continue; }
+      cur += c;
+    }
+    cells.push(cur.trim());
+    return cells;
+  }
 
   function renderMarkdown(src) {
     const lines = String(src || '').replace(/\r\n?/g, '\n').split('\n');
@@ -93,6 +112,20 @@
         const level = m[1].length + 2; // h3..h5 sit below the task title
         out.push('<h' + level + '>' + inline(m[2]) + '</h' + level + '>');
         i++;
+        continue;
+      }
+      if (TABLE_ROW.test(line) && i + 1 < lines.length && TABLE_SEP.test(lines[i + 1])) {
+        const head = tableCells(line);
+        i += 2;
+        const rows = [];
+        while (i < lines.length && TABLE_ROW.test(lines[i])) {
+          rows.push(tableCells(lines[i]));
+          i++;
+        }
+        out.push('<div class="tablewrap"><table class="md"><thead><tr>' +
+          head.map((c) => '<th>' + inline(c) + '</th>').join('') + '</tr></thead><tbody>' +
+          rows.map((r) => '<tr>' + head.map((_, k) => '<td>' + inline(r[k] || '') + '</td>').join('') + '</tr>').join('') +
+          '</tbody></table></div>');
         continue;
       }
       const ulRe = /^\s*[-*]\s+(.*)$/;
@@ -339,10 +372,50 @@
     return out;
   }
 
+  // ------------------------------------------------------------------ routes
+
+  function parseMinutes(est) {
+    const m = /^(\d+)([mh])$/.exec(String(est || ''));
+    return m ? Number(m[1]) * (m[2] === 'h' ? 60 : 1) : 0;
+  }
+
+  function formatMinutes(min) {
+    if (min < 60) return min + 'm';
+    const h = Math.floor(min / 60);
+    const r = min % 60;
+    return r ? h + 'h' + r + 'm' : h + 'h';
+  }
+
+  // The routes through a path: the recommended order plus one route per goal.
+  // Each route lists its tasks prereq-first with role 'target' (the goal's own
+  // task) or 'prereq'. Minutes sum the estimates; `left` excludes finished tasks.
+  function routes(path, state) {
+    const byId = new Map(path.tasks.map((t) => [t.id, t]));
+    const st = state || emptyState();
+    function make(id, title, ids, targets) {
+      const items = ids.filter((x) => byId.has(x)).map((x) => ({
+        id: x,
+        role: !targets || targets.has(x) ? 'target' : 'prereq',
+      }));
+      let minutes = 0;
+      let left = 0;
+      for (const it of items) {
+        const t = byId.get(it.id);
+        const m = parseMinutes(t.estimate);
+        minutes += m;
+        if (!isTaskDone(t, st)) left += m;
+      }
+      return { id, title, items, minutes, left };
+    }
+    const out = [make('recommended', 'Recommended flow', path.recommended, null)];
+    for (const g of path.goals || []) out.push(make(g.id, g.title, closure(path, g.tasks), new Set(g.tasks)));
+    return out;
+  }
+
   const api = {
     MODES, BIT, esc, renderMarkdown, emptyState, cloneState, maskOf, isTaskDone, progress,
     encodeHash, decodeHash, applyMasks, masksOf, sameMasks, encodeToken, decodeToken,
-    pruneSnapshots, closure,
+    pruneSnapshots, closure, parseMinutes, formatMinutes, routes,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
@@ -359,6 +432,7 @@
     let state = emptyState();
     let snaps = [];
     let view = 'recommended';
+    let answersOn = true;
     let lastSnapJson = '';
     let preLinkState = null;
 
@@ -435,6 +509,13 @@
       return '<div class="callout ' + cls + '"><strong>' + label + '</strong> ' + inline(text) + '</div>';
     }
 
+    // A reveal for an answer. Hidden entirely when the page-level switch is off.
+    function answerHtml(text) {
+      if (!text) return '';
+      return '<details class="answer"><summary>Show answer</summary><div class="answer-body">' +
+        renderMarkdown(text) + '</div></details>';
+    }
+
     function cardHtml(t, inGoal) {
       const section = (path.sections || []).find((s) => s.id === t.section);
       const parts = [];
@@ -444,14 +525,15 @@
       if (inGoal && !inGoal.has(t.id)) parts.push('<span class="chip prereq">prerequisite</span>');
       if (t.estimate) parts.push('<span class="chip est">' + esc(t.estimate) + '</span>');
       parts.push('<span class="blocked"></span></header>');
-      if (t.predict) parts.push(callout('predict', 'Predict first:', t.predict));
+      const ans = t.answers || {};
+      if (t.predict) parts.push(callout('predict', 'Predict first:', t.predict) + answerHtml(ans.predict));
       if (t.body) parts.push('<div class="body">' + renderMarkdown(t.body) + '</div>');
-      if (t.elaborate) parts.push(callout('elaborate', 'While reading, ask why:', t.elaborate));
+      if (t.elaborate) parts.push(callout('elaborate', 'While reading, ask why:', t.elaborate) + answerHtml(ans.elaborate));
       if (t.steps && t.steps.length) {
         parts.push('<ol class="steps">');
         for (const s of t.steps) {
           parts.push('<li>' + inline(s.text));
-          if (s.predict) parts.push('<div class="callout predict small"><strong>Predict:</strong> ' + inline(s.predict) + '</div>');
+          if (s.predict) parts.push('<div class="callout predict small"><strong>Predict:</strong> ' + inline(s.predict) + '</div>' + answerHtml(s.answer));
           if (s.cmd) parts.push(codeBlock(s.cmd));
           parts.push('</li>');
         }
@@ -461,9 +543,9 @@
         parts.push('<ul class="links">' + t.links.map((l) =>
           '<li><a href="' + esc(l.url) + '" target="_blank" rel="noopener noreferrer">' + esc(l.label) + '</a></li>').join('') + '</ul>');
       }
-      if (t.modify) parts.push(callout('modify', 'Then change it:', t.modify));
+      if (t.modify) parts.push(callout('modify', 'Then change it:', t.modify) + answerHtml(ans.modify));
       if (t.explain) {
-        parts.push(callout('explain', 'Explain without notes:', t.explain) +
+        parts.push(callout('explain', 'Explain without notes:', t.explain) + answerHtml(ans.explain) +
           '<p class="compare"><a href="#t-' + t.id + '" data-compare="' + t.id + '">Compare with the source above</a></p>');
       }
       parts.push('<div class="modes">' + taskModes(t).map((m) =>
@@ -476,6 +558,78 @@
       return parts.join('');
     }
 
+    // ------------------------------------------------------- answers (page level)
+
+    function hasAnswers() {
+      return path.tasks.some((t) => (t.answers && Object.keys(t.answers).length) ||
+        (t.steps || []).some((s) => s.answer));
+    }
+
+    // The switch shows or hides the "Show answer" buttons; it never opens an answer.
+    function applyAnswersMode() {
+      app.dataset.answers = answersOn ? 'on' : 'off';
+    }
+
+    // Printing: with answers enabled every answer is printed open; with them
+    // disabled they are not printed at all. Reveal state is restored afterwards.
+    let printOpen = null;
+    window.addEventListener('beforeprint', () => {
+      if (printOpen) return;
+      const all = Array.from(app.querySelectorAll('details.answer'));
+      printOpen = all.map((d) => d.open);
+      if (answersOn) all.forEach((d) => { d.open = true; });
+    });
+    window.addEventListener('afterprint', () => {
+      if (!printOpen) return;
+      app.querySelectorAll('details.answer').forEach((d, i) => { d.open = !!printOpen[i]; });
+      printOpen = null;
+    });
+
+    // ---------------------------------------------------------------- routes
+
+    function renderRoutes() {
+      const rs = routes(path, state);
+      const cols = rs.map((r, i) => ({ r, label: i === 0 ? 'Rec' : 'G' + i }));
+      const rec = rs[0];
+      const head = '<tr><th scope="col">Task</th><th scope="col">Time</th>' + cols.map((c) =>
+        '<th scope="col"><button type="button" data-route="' + esc(c.r.id) + '" title="' + esc(c.r.title) + '">' +
+        esc(c.label) + '</button></th>').join('') + '</tr>';
+      const rows = rec.items.map((it) => {
+        const t = byId.get(it.id);
+        const done = isTaskDone(t, state);
+        const cells = cols.map((c) => {
+          const m = c.r.items.find((x) => x.id === it.id);
+          const mark = !m ? '' : m.role === 'target' ? '\u25cf' : '\u25cb';
+          return '<td class="' + (m ? m.role : '') + '">' + mark + '</td>';
+        }).join('');
+        return '<tr' + (done ? ' class="done"' : '') + '><td><a href="#t-' + esc(t.id) + '" data-goto="' + esc(t.id) + '">' +
+          esc(t.title) + '</a>' + (done ? ' <span class="muted">\u2713</span>' : '') + '</td><td>' +
+          esc(t.estimate || '') + '</td>' + cells + '</tr>';
+      }).join('');
+      const legend = cols.map((c) => '<li><strong>' + esc(c.label) + '</strong> ' + esc(c.r.title) + ': ' +
+        formatMinutes(c.r.minutes) + (c.r.left !== c.r.minutes ? ' (' + formatMinutes(c.r.left) + ' left)' : '') + '</li>').join('');
+      document.getElementById('routes-body').innerHTML =
+        '<div class="tablewrap"><table class="routes">' + head + rows + '</table></div>' +
+        '<p class="muted">\u25cf is a task the route is for; \u25cb is a prerequisite pulled in. Click a column to view that route.</p>' +
+        '<ul class="legend">' + legend + '</ul>';
+    }
+
+    // A heading before the first task of each run of tasks in the same section,
+    // with the run's task count and total estimate.
+    function sectionHeadHtml(ids, i) {
+      const t = byId.get(ids[i]);
+      const sec = (path.sections || []).find((s) => s.id === t.section);
+      if (!sec || (i > 0 && byId.get(ids[i - 1]).section === t.section)) return '';
+      let n = 0;
+      let min = 0;
+      for (let j = i; j < ids.length && byId.get(ids[j]).section === t.section; j++) {
+        n++;
+        min += parseMinutes(byId.get(ids[j]).estimate);
+      }
+      return '<div class="sectionhead" role="heading" aria-level="2">' + esc(sec.title) +
+        ' <span class="muted">' + n + (n === 1 ? ' task' : ' tasks') + (min ? ' \u00b7 ' + formatMinutes(min) : '') + '</span></div>';
+    }
+
     function updateProgress() {
       const p = progress(path, state);
       document.getElementById('bar').style.width = p.pct + '%';
@@ -484,6 +638,7 @@
 
     function refresh() {
       updateProgress();
+      renderRoutes();
       const goalSet = goalTaskSet();
       document.querySelectorAll('article.task').forEach((card) => {
         const t = byId.get(card.dataset.id);
@@ -513,13 +668,14 @@
         ? '<strong>' + esc(g.title) + '</strong>: ' + inline(g.description || '')
         : 'Recommended order for general learning.';
       const list = document.getElementById('tasks');
-      list.innerHTML = ids.map((id) => cardHtml(byId.get(id), inGoal)).join('');
+      list.innerHTML = ids.map((id, i) => sectionHeadHtml(ids, i) + cardHtml(byId.get(id), inGoal)).join('');
       list.querySelectorAll('article.task').forEach((card) => {
         const t = byId.get(card.dataset.id);
         const notes = state.notes[t.id] || [];
         card.querySelectorAll('textarea[data-note]').forEach((ta) => { ta.value = notes[Number(ta.dataset.note)] || ''; });
         if (notes.some(Boolean)) card.querySelector('details.notes').open = true;
       });
+      applyAnswersMode();
       refresh();
       renderSnaps();
     }
@@ -594,10 +750,34 @@
       }
     });
 
-    document.getElementById('view').addEventListener('change', (e) => {
-      view = e.target.value;
+    function setView(v) {
+      view = v;
+      document.getElementById('view').value = v;
       store('view', view);
       renderAll();
+    }
+
+    document.getElementById('view').addEventListener('change', (e) => setView(e.target.value));
+
+    document.getElementById('answers').addEventListener('change', (e) => {
+      answersOn = e.target.checked;
+      store('answers', answersOn ? 'on' : 'off');
+      applyAnswersMode();
+    });
+
+    document.getElementById('routes-body').addEventListener('click', (e) => {
+      const col = e.target.closest('button[data-route]');
+      if (col) {
+        setView(col.dataset.route);
+        return;
+      }
+      const go = e.target.closest('a[data-goto]');
+      if (go) {
+        e.preventDefault();
+        if (!document.getElementById('t-' + go.dataset.goto)) setView('recommended');
+        const el = document.getElementById('t-' + go.dataset.goto);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     });
 
     document.getElementById('copytoken').addEventListener('click', () => copyText(document.getElementById('token').value));
@@ -670,6 +850,9 @@
     view = load('view', 'recommended');
     if (view !== 'recommended' && !path.goals.some((g) => g.id === view)) view = 'recommended';
     sel.value = view;
+    answersOn = load('answers', 'on') !== 'off';
+    document.getElementById('answers').checked = answersOn;
+    document.getElementById('answers-control').hidden = !hasAnswers();
 
     const hashed = decodeHash(location.hash);
     if (hashed) {

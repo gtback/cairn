@@ -28,7 +28,9 @@ IMAGE_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
                ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml"}
 BIG_IMAGE_BYTES = 1_000_000
 TASK_KEYS = {"id", "section", "title", "modes", "estimate", "predict", "elaborate", "steps",
-             "links", "modify", "explain", "prereqs", "body", "noteprompts"}
+             "links", "modify", "explain", "prereqs", "body", "noteprompts", "answers"}
+# Prompts that can carry a hidden answer in a task's "answers" object.
+ANSWER_KEYS = ("predict", "elaborate", "modify", "explain")
 
 
 class PathError(Exception):
@@ -142,6 +144,24 @@ def validate_and_load(path_dir):
         for i, step in enumerate(t.get("steps", [])):
             if not isinstance(step, dict) or not step.get("text"):
                 errors.append(f"{where}: steps[{i}] needs 'text'")
+            elif "answer" in step:
+                if not isinstance(step["answer"], str) or not step["answer"].strip():
+                    errors.append(f"{where}: steps[{i}] answer must be a non-empty string")
+                elif not step.get("predict"):
+                    errors.append(f"{where}: steps[{i}] has an 'answer' but no 'predict' to answer")
+        answers = t.get("answers", {})
+        if not isinstance(answers, dict):
+            errors.append(f"{where}: answers must be an object")
+            answers = {}
+        for key, value in answers.items():
+            if key not in ANSWER_KEYS:
+                errors.append(f"{where}: answers.{key} is not one of {list(ANSWER_KEYS)}")
+            elif not t.get(key):
+                errors.append(f"{where}: answers.{key} has no matching {key!r} prompt")
+            elif not isinstance(value, str) or not value.strip():
+                errors.append(f"{where}: answers.{key} must be a non-empty string")
+        if "explain" in modes and t.get("explain") and not answers.get("explain"):
+            warnings.append(f"{where}: explain prompt has no answers.explain")
         for i, link in enumerate(t.get("links", [])):
             if not isinstance(link, dict) or not link.get("label") or not isinstance(link.get("url"), str):
                 errors.append(f"{where}: links[{i}] needs 'label' and 'url'")
@@ -162,6 +182,15 @@ def validate_and_load(path_dir):
         out["modes"] = modes
         out["prereqs"] = list(t.get("prereqs", []))
         out["body"] = body
+        if answers:
+            out["answers"] = {k: inline_images(v, path_dir, where, errors, warnings)
+                              for k, v in answers.items() if isinstance(v, str)}
+        if isinstance(out.get("steps"), list):
+            out["steps"] = [
+                {**step, "answer": inline_images(step["answer"], path_dir, where, errors, warnings)}
+                if isinstance(step, dict) and isinstance(step.get("answer"), str) else step
+                for step in out["steps"]
+            ]
         out_tasks.append(out)
 
     # References and cycles.

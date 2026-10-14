@@ -28,8 +28,14 @@
   <div class="controls">
     <label for="view">View</label>
     <select id="view"></select>
+    <label id="answers-control" hidden><input type="checkbox" id="answers" checked> Enable answers</label>
     <span class="muted" id="goalinfo"></span>
   </div>
+
+  <details id="routes">
+    <summary>Routes through this path</summary>
+    <div id="routes-body"></div>
+  </details>
 
   <div id="tasks"></div>
 

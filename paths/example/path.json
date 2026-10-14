@@ -25,7 +25,8 @@
         {
           "text": "Pretty-print a compact document.",
           "predict": "What will `.` do to the input?",
-          "cmd": "echo '{\"a\":1,\"b\":[1,2]}' | jq ."
+          "cmd": "echo '{\"a\":1,\"b\":[1,2]}' | jq .",
+          "answer": "It pretty-prints: the same data, indented across several lines, keys in their original order."
         }
       ],
       "links": [{"label": "Download options", "url": "https://jqlang.github.io/jq/download/"}]
@@ -39,6 +40,11 @@
       "prereqs": ["install"],
       "predict": "Before reading: if `.` returns its input unchanged, what do you think `.a` returns?",
       "elaborate": "Why is a program that takes JSON in and emits JSON out easy to chain?",
+      "answers": {
+        "predict": "`.a` looks up the key `a` in the input and returns its value; `.` alone returns the whole input.",
+        "elaborate": "Every filter has the same shape (JSON in, JSON out), so one filter's output can be the next one's input. That is what the pipe `|` does.",
+        "explain": "A filter is a small program that takes one JSON value and produces zero or more JSON values. `.` passes the input through unchanged; `.a` picks a field out of it."
+      },
       "links": [{"label": "Basic filters", "url": "https://jqlang.github.io/jq/manual/#basic-filters"}],
       "explain": "In your own words, what is a jq filter, and what does it do to its input?"
     },
@@ -53,6 +59,7 @@
         {
           "text": "Read a nested field.",
           "predict": "Will the result include the quotation marks?",
+          "answer": "Yes. Strings are printed as JSON, quotes included. The `-r` flag prints them raw.",
           "cmd": "echo '{\"user\":{\"name\":\"Ada\",\"langs\":[\"go\",\"cue\"]}}' | jq '.user.name'"
         },
         {
@@ -66,10 +73,12 @@
         {
           "text": "Ask for a field that does not exist.",
           "predict": "Error or something else?",
+          "answer": "No error: it prints `null`.",
           "cmd": "echo '{\"a\":1}' | jq -c '.missing'"
         }
       ],
-      "modify": "Print the name in raw form, without quotation marks. Find the flag in `jq --help`."
+      "modify": "Print the name in raw form, without quotation marks. Find the flag in `jq --help`.",
+      "answers": {"modify": "`jq -r '.user.name'` prints `Ada` with no quotes."}
     },
     {
       "id": "select",
@@ -82,6 +91,7 @@
         {
           "text": "Keep only the items that are ok.",
           "predict": "How many of the three items survive?",
+          "answer": "Two: the items named `a` and `c`.",
           "cmd": "echo '[{\"n\":\"a\",\"ok\":true},{\"n\":\"b\",\"ok\":false},{\"n\":\"c\",\"ok\":true}]' | jq -c 'map(select(.ok))'"
         },
         {
@@ -90,6 +100,10 @@
         }
       ],
       "modify": "Change the filter so it keeps only the items that are NOT ok.",
+      "answers": {
+        "modify": "`map(select(.ok | not))` keeps only `b`.",
+        "explain": "`.[]` emits each element as a separate output; `map(f)` applies `f` to every element and collects the results back into one array. Use `.[]` when you want a stream, `map` when you want an array."
+      },
       "explain": "What is the difference between `.[]` and `map(...)`, and when would you reach for each?"
     },
     {
@@ -104,6 +118,7 @@
         {
           "text": "Emit two results from one input with a comma.",
           "predict": "In what order do they appear?",
+          "answer": "In the order written: `\"Ada\"` first, then `1`.",
           "cmd": "echo '{\"name\":\"Ada\",\"items\":[1,2,3]}' | jq -c '.name, .items[0]'"
         },
         {
@@ -123,6 +138,10 @@
         {"text": "Build a new object from parts of the input.", "cmd": "echo '{\"name\":\"Ada\",\"items\":[1,2,3]}' | jq -c '{name: .name, count: (.items | length)}'"}
       ],
       "modify": "Add a `first` key holding the first item, and a `total` key holding the sum of the items (see `add`).",
+      "answers": {
+        "modify": "`{name: .name, count: (.items | length), first: .items[0], total: (.items | add)}`",
+        "explain": "The object expression receives the original input. For `name`, `.name` runs against that input. For `count`, the parentheses are a pipeline: `.items` runs against the input and its result is the input to `length`."
+      },
       "explain": "Walk through how jq evaluates `{name: .name, count: (.items | length)}`: what is the input to each part?"
     }
   ],

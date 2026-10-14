@@ -12,6 +12,8 @@ A cairn is a stack of stones that marks a trail. Each task you finish leaves one
 - A recommended flow for general learning, plus goals ("choose your own adventure") that show only the tasks they need, prerequisites first.
 - Tasks of 5–60 minutes with a markdown body, ordered steps, copyable commands, links, and images (slides and diagrams are inlined).
 - Per-task **read / do / explain** checkboxes.
+- Hidden answers for predictions, "why" prompts, challenges and explanations, behind a **Show answer** link. A page-level **Enable answers** switch shows or hides those links; printing includes all answers when it is on and none when it is off.
+- A collapsible **Routes** map: every task against the recommended flow and each goal, with time per route.
 - Progress that travels with the plan:
   - the URL hash carries the checkmarks, so a hosted link shares progress;
   - a **token** in the page carries checkmarks and notes, and pasting it back restores them;

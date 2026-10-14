@@ -28,7 +28,7 @@ How the CAIRN verbs map to learning research, what that implies for the design, 
 
 - Put the question before the material (`predict`), and keep it about the key idea.
 - Prefer "change it and see" over "run these exact commands" for people who already know the basics.
-- Every `explain` prompt should be answerable without the source open, and checkable against it afterwards.
+- Every `explain` prompt should be answerable without the source open, and checkable against it afterwards. Hidden answers support this: attempt first, then get corrective feedback.
 - Size tasks to 5–60 minutes. Several short sessions beat one marathon.
 
 ## Personalization

@@ -149,3 +149,54 @@ test('markdown: data-uri images are allowed, inline code protects markup', () =>
   assert.match(html, /<img alt="alt text" src="data:image\/png;base64,iVBORw0KGgo=">/);
   assert.match(html, /<code>\*\*not bold\*\*<\/code>/);
 });
+
+test('minutes parse and format', () => {
+  assert.equal(C.parseMinutes('15m'), 15);
+  assert.equal(C.parseMinutes('2h'), 120);
+  assert.equal(C.parseMinutes(undefined), 0);
+  assert.equal(C.parseMinutes('soon'), 0);
+  assert.equal(C.formatMinutes(45), '45m');
+  assert.equal(C.formatMinutes(120), '2h');
+  assert.equal(C.formatMinutes(125), '2h5m');
+});
+
+test('routes: recommended plus one route per goal, prereqs flagged, time left excludes done', () => {
+  const p = {
+    id: 'r', version: 1,
+    tasks: [
+      { id: 'a', title: 'A', modes: ['do'], estimate: '10m' },
+      { id: 'b', title: 'B', modes: ['do'], estimate: '20m', prereqs: ['a'] },
+      { id: 'c', title: 'C', modes: ['do'], estimate: '1h', prereqs: ['b'] },
+      { id: 'd', title: 'D', modes: ['do'], estimate: '5m' },
+    ],
+    goals: [{ id: 'g1', title: 'Goal one', tasks: ['c'] }, { id: 'g2', title: 'Goal two', tasks: ['d'] }],
+    recommended: ['a', 'b', 'c', 'd'],
+  };
+  const state = C.emptyState();
+  state.done.a = { do: 1 };
+  const rs = C.routes(p, state);
+  assert.deepEqual(rs.map((r) => r.id), ['recommended', 'g1', 'g2']);
+  assert.equal(rs[0].minutes, 95);
+  assert.equal(rs[0].left, 85);
+  assert.deepEqual(rs[1].items, [
+    { id: 'a', role: 'prereq' }, { id: 'b', role: 'prereq' }, { id: 'c', role: 'target' },
+  ]);
+  assert.equal(rs[1].minutes, 90);
+  assert.equal(rs[1].left, 80);
+  assert.deepEqual(rs[2].items, [{ id: 'd', role: 'target' }]);
+  assert.ok(rs[0].items.every((i) => i.role === 'target'));
+});
+
+test('markdown: pipe tables render with inline markup, escaped pipes and code pipes', () => {
+  const html = C.renderMarkdown('Before\n\n| A | **B** |\n|---|:---:|\n| `x | y` | a \\| b |\n| <i>raw</i> |\n\nAfter');
+  assert.match(html, /<table class="md"><thead><tr><th>A<\/th><th><strong>B<\/strong><\/th><\/tr><\/thead>/);
+  assert.match(html, /<td><code>x \| y<\/code><\/td><td>a \| b<\/td>/);
+  assert.match(html, /<td>&lt;i&gt;raw&lt;\/i&gt;<\/td><td><\/td>/);
+  assert.match(html, /<p>Before<\/p>/);
+  assert.match(html, /<p>After<\/p>/);
+});
+
+test('markdown: a pipe line without a separator row is just a paragraph', () => {
+  const html = C.renderMarkdown('| not | a table |');
+  assert.ok(!html.includes('<table'));
+});

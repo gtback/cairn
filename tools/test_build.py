@@ -24,7 +24,7 @@ def good_spec():
         "tasks": [
             {"id": "a", "section": "s1", "title": "A", "modes": ["read"], "estimate": "10m"},
             {"id": "b", "section": "s1", "title": "B", "modes": ["do", "explain"],
-             "explain": "Explain B.", "prereqs": ["a"], "steps": [{"text": "run", "cmd": "echo hi"}]},
+             "explain": "Explain B.", "answers": {"explain": "B is B."}, "prereqs": ["a"], "steps": [{"text": "run", "cmd": "echo hi"}]},
         ],
         "goals": [{"id": "g", "title": "G", "description": "d", "tasks": ["b"]}],
         "recommended": ["a", "b"],
@@ -182,6 +182,40 @@ class BuildTest(unittest.TestCase):
             build.validate_and_load(self.dir)
         with self.assertRaises(build.PathError):
             build.validate_and_load(self.dir / "nowhere")
+
+    def test_answers_are_kept_and_validated(self):
+        spec = good_spec()
+        spec["tasks"][1]["predict"] = "What happens?"
+        spec["tasks"][1]["answers"]["predict"] = "Nothing much."
+        spec["tasks"][1]["steps"][0].update({"predict": "Output?", "answer": "hi"})
+        self.write(spec)
+        path, warnings = build.validate_and_load(self.dir)
+        self.assertEqual(warnings, [])
+        self.assertEqual(path["tasks"][1]["answers"], {"explain": "B is B.", "predict": "Nothing much."})
+        self.assertEqual(path["tasks"][1]["steps"][0]["answer"], "hi")
+
+    def test_answer_errors(self):
+        spec = good_spec()
+        spec["tasks"][1]["answers"] = {"explain": "ok", "modify": "no modify prompt", "bogus": "x", "predict": ""}
+        spec["tasks"][1]["steps"][0]["answer"] = "no predict on this step"
+        errors = self.errors(spec)
+        self.assertError(errors, "answers.modify has no matching 'modify' prompt")
+        self.assertError(errors, "answers.bogus is not one of")
+        self.assertError(errors, "steps[0] has an 'answer' but no 'predict'")
+
+    def test_missing_explain_answer_warns(self):
+        spec = good_spec()
+        del spec["tasks"][1]["answers"]
+        self.write(spec)
+        _, warnings = build.validate_and_load(self.dir)
+        self.assertEqual(warnings, ["task 'b': explain prompt has no answers.explain"])
+
+    def test_answer_images_are_inlined(self):
+        spec = good_spec()
+        spec["tasks"][1]["answers"]["explain"] = "See ![d](assets/p.png)"
+        self.write(spec, {"assets/p.png": PNG})
+        path, _ = build.validate_and_load(self.dir)
+        self.assertIn("data:image/png;base64,", path["tasks"][1]["answers"]["explain"])
 
     def test_cli_reports_every_error_and_exit_code(self):
         spec = good_spec()
