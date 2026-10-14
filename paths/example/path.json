@@ -38,7 +38,7 @@
       "modes": ["read", "explain"],
       "estimate": "15m",
       "prereqs": ["install"],
-      "predict": "Before reading: if `.` returns its input unchanged, what do you think `.a` returns?",
+      "predict": "If `.` returns its input unchanged, what do you think `.a` returns?",
       "elaborate": "Why is a program that takes JSON in and emits JSON out easy to chain?",
       "answers": {
         "predict": "`.a` looks up the key `a` in the input and returns its value; `.` alone returns the whole input.",

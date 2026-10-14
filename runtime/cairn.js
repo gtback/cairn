@@ -528,7 +528,7 @@
       const ans = t.answers || {};
       if (t.predict) parts.push(callout('predict', 'Predict first:', t.predict) + answerHtml(ans.predict));
       if (t.body) parts.push('<div class="body">' + renderMarkdown(t.body) + '</div>');
-      if (t.elaborate) parts.push(callout('elaborate', 'While reading, ask why:', t.elaborate) + answerHtml(ans.elaborate));
+      if (t.elaborate) parts.push(callout('elaborate', 'While reading, ask:', t.elaborate) + answerHtml(ans.elaborate));
       if (t.steps && t.steps.length) {
         parts.push('<ol class="steps">');
         for (const s of t.steps) {
@@ -545,7 +545,7 @@
       }
       if (t.modify) parts.push(callout('modify', 'Then change it:', t.modify) + answerHtml(ans.modify));
       if (t.explain) {
-        parts.push(callout('explain', 'Explain without notes:', t.explain) + answerHtml(ans.explain) +
+        parts.push(callout('explain', 'Without notes:', t.explain) + answerHtml(ans.explain) +
           '<p class="compare"><a href="#t-' + t.id + '" data-compare="' + t.id + '">Compare with the source above</a></p>');
       }
       parts.push('<div class="modes">' + taskModes(t).map((m) =>

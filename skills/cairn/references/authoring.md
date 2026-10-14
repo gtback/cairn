@@ -18,6 +18,7 @@ Combine them where it fits: `read` + `explain` for concepts, `do` + `explain` fo
 
 ## Prompts
 
+- The page puts each prompt under a label ("Predict first:", "While reading, ask:", "Then change it:", "Without notes:"). Write the question itself and do not repeat the label ("Before reading: ...", "While reading, ask why ...").
 - **predict**: ask before the material, about the key idea. "What do you think `.a` returns if `.` returns the input unchanged?" Not "what will you learn?".
 - **elaborate**: a "why" or "how does this differ from X" to hold in mind while reading.
 - **step.predict**: one per step at most; use it where the output is surprising or instructive.
