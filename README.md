@@ -38,6 +38,7 @@ A path is a directory:
 ```
 my-path/
   path.json      structure: tasks, modes, prereqs, goals, recommended order
+                 (or path.yaml, which needs PyYAML)
   intro.md       optional intro
   tasks/<id>.md  optional prose for each task
   assets/        images referenced from markdown

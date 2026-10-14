@@ -10,6 +10,29 @@ my-path/
   assets/*          images used by markdown
 ```
 
+## path.json or path.yaml
+
+The structure file is `path.json`, or `path.yaml` / `path.yml` if you prefer to edit by hand. Use exactly one. The fields are identical; this page shows JSON.
+
+YAML needs PyYAML (`pip install pyyaml`); the build says so if it is missing, and JSON needs nothing beyond Python. YAML is loaded strictly: only `true` and `false` are booleans (so `on`, `no` and `yes` stay strings, which matters for ids), dates stay strings, and duplicate keys are errors. Block scalars drop their trailing newline, so a `|` block is a clean command. Comments are allowed.
+
+```yaml
+- id: select
+  title: Filter lists with select and map
+  modes: [do, explain]
+  estimate: 20m
+  steps:
+    - text: Keep only the items that are ok.
+      cmd: |
+        echo '[{"n":"a","ok":true}]' | jq -c 'map(select(.ok))'
+  answers:
+    explain: >
+      `.[]` streams the elements; `map(...)` collects the results
+      back into an array.
+```
+
+A YAML build of a path is byte-identical to the build of the same path in JSON.
+
 ## path.json
 
 ```json

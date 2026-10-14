@@ -5,6 +5,7 @@ import json
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -182,6 +183,74 @@ class BuildTest(unittest.TestCase):
             build.validate_and_load(self.dir)
         with self.assertRaises(build.PathError):
             build.validate_and_load(self.dir / "nowhere")
+
+    def yaml_available(self):
+        try:
+            import yaml  # noqa: F401
+        except ImportError:
+            self.skipTest("PyYAML not installed")
+
+    def test_yaml_loads_same_as_json(self):
+        self.yaml_available()
+        import yaml
+        spec = good_spec()
+        (self.dir / "path.yaml").write_text(yaml.safe_dump(spec, sort_keys=False))
+        from_yaml, _ = build.validate_and_load(self.dir)
+        (self.dir / "path.yaml").unlink()
+        self.write(spec)
+        from_json, _ = build.validate_and_load(self.dir)
+        self.assertEqual(from_yaml, from_json)
+
+    def test_yaml_block_scalars_comments_and_strict_types(self):
+        self.yaml_available()
+        (self.dir / "path.yaml").write_text(
+            "# comment\n"
+            "id: demo\n"
+            "title: Demo\n"
+            "sections: [{id: on, title: Section on}]\n"
+            "tasks:\n"
+            "  - id: no\n"
+            "    section: on\n"
+            "    title: 2026-10-13\n"
+            "    modes: [do]\n"
+            "    estimate: 15m\n"
+            "    steps:\n"
+            "      - text: Run it\n"
+            "        cmd: |\n"
+            "          echo \"hi: there\" # not a comment\n"
+        )
+        path, warnings = build.validate_and_load(self.dir)
+        self.assertEqual(warnings, [])
+        task = path["tasks"][0]
+        self.assertEqual(task["id"], "no")
+        self.assertEqual(task["section"], "on")
+        self.assertEqual(task["title"], "2026-10-13")
+        self.assertEqual(task["steps"][0]["cmd"], 'echo "hi: there" # not a comment')
+
+    def test_yaml_errors(self):
+        self.yaml_available()
+        (self.dir / "path.yaml").write_text("id: a\nid: b\ntitle: T\ntasks: []\n")
+        with self.assertRaises(build.PathError) as cm:
+            build.validate_and_load(self.dir)
+        self.assertError(cm.exception.errors, "duplicate key 'id'")
+        (self.dir / "path.yaml").write_text("id: [unclosed\n")
+        with self.assertRaises(build.PathError) as cm:
+            build.validate_and_load(self.dir)
+        self.assertError(cm.exception.errors, "not valid YAML")
+
+    def test_yaml_without_pyyaml_says_how_to_fix_it(self):
+        (self.dir / "path.yaml").write_text("id: demo\n")
+        with unittest.mock.patch.dict(sys.modules, {"yaml": None}):
+            with self.assertRaises(build.PathError) as cm:
+                build.validate_and_load(self.dir)
+        self.assertError(cm.exception.errors, "needs PyYAML")
+
+    def test_json_and_yaml_together_is_an_error(self):
+        self.write(good_spec())
+        (self.dir / "path.yaml").write_text("id: demo\n")
+        with self.assertRaises(build.PathError) as cm:
+            build.validate_and_load(self.dir)
+        self.assertError(cm.exception.errors, "keep only one")
 
     def test_answers_are_kept_and_validated(self):
         spec = good_spec()

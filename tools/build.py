@@ -4,7 +4,7 @@
 Usage:
     build.py PATH_DIR [-o OUTPUT.html]
 
-PATH_DIR contains path.json, optional intro.md, tasks/<id>.md bodies and
+PATH_DIR contains path.json (or path.yaml, which needs PyYAML), optional intro.md, tasks/<id>.md bodies and
 assets/. Relative images in markdown are inlined as data URIs. Without -o the
 output is dist/<path id>.html next to this repository's runtime/.
 """
@@ -67,19 +67,77 @@ def read_text(file):
     return file.read_text(encoding="utf-8")
 
 
+SPEC_NAMES = ("path.json", "path.yaml", "path.yml")
+
+
+def load_yaml(file):
+    """Parse a YAML path file strictly: only true/false are booleans, nothing becomes a date,
+    duplicate keys are errors, and block scalars lose their trailing newline."""
+    try:
+        import yaml
+    except ImportError:
+        raise PathError([f"{file.name} needs PyYAML: pip install pyyaml (or use path.json)"])
+
+    class Loader(yaml.SafeLoader):
+        pass
+
+    # Drop the YAML 1.1 implicit types that surprise authors (yes/no/on/off, dates).
+    Loader.yaml_implicit_resolvers = {
+        ch: [(tag, rx) for tag, rx in rs if tag not in ("tag:yaml.org,2002:bool", "tag:yaml.org,2002:timestamp")]
+        for ch, rs in yaml.SafeLoader.yaml_implicit_resolvers.items()
+    }
+    Loader.add_implicit_resolver("tag:yaml.org,2002:bool", re.compile(r"^(?:true|false)$"), list("tf"))
+
+    def mapping(loader, node, deep=False):
+        seen = set()
+        for key_node, _ in node.value:
+            key = loader.construct_object(key_node, deep=True)
+            if key in seen:
+                raise yaml.constructor.ConstructorError(
+                    None, None, f"duplicate key {key!r}", key_node.start_mark)
+            seen.add(key)
+        return yaml.SafeLoader.construct_mapping(loader, node, deep)
+
+    Loader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, mapping)
+
+    def tidy(value):
+        if isinstance(value, str):
+            return value.rstrip("\n")
+        if isinstance(value, list):
+            return [tidy(v) for v in value]
+        if isinstance(value, dict):
+            return {k: tidy(v) for k, v in value.items()}
+        return value
+
+    try:
+        return tidy(yaml.load(read_text(file), Loader=Loader))
+    except yaml.YAMLError as e:
+        raise PathError([f"{file.name} is not valid YAML: {e}"])
+
+
+def load_spec(path_dir):
+    """Return (spec file, parsed spec) from path.json or path.yaml/.yml (exactly one)."""
+    found = [path_dir / n for n in SPEC_NAMES if (path_dir / n).is_file()]
+    if not found:
+        raise PathError([f"{path_dir / 'path.json'} not found (path.yaml is also accepted)"])
+    if len(found) > 1:
+        raise PathError(["found " + " and ".join(f.name for f in found) + "; keep only one"])
+    file = found[0]
+    if file.suffix == ".json":
+        try:
+            return file, json.loads(read_text(file))
+        except json.JSONDecodeError as e:
+            raise PathError([f"{file.name} is not valid JSON: {e}"])
+    return file, load_yaml(file)
+
+
 def validate_and_load(path_dir):
     """Return (normalized path dict, warnings). Raise PathError listing every problem."""
     errors, warnings = [], []
     path_dir = Path(path_dir)
-    spec_file = path_dir / "path.json"
-    if not spec_file.is_file():
-        raise PathError([f"{spec_file} not found"])
-    try:
-        spec = json.loads(read_text(spec_file))
-    except json.JSONDecodeError as e:
-        raise PathError([f"path.json is not valid JSON: {e}"])
+    spec_file, spec = load_spec(path_dir)
     if not isinstance(spec, dict):
-        raise PathError(["path.json must contain an object"])
+        raise PathError([f"{spec_file.name} must contain an object"])
 
     pid = spec.get("id")
     if not isinstance(pid, str) or not ID_RE.match(pid):
