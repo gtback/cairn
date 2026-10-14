@@ -22,6 +22,12 @@
 
 Combine them where it fits: `read` + `explain` for concepts, `do` + `explain` for a skill. Most tasks need no more than two.
 
+## Commands
+
+- Put each command on its own line (a multi-line `cmd`; in YAML a `|` block) rather than chaining with `&&` or `;`. The learner sees one command per line, and long commands wrap instead of scrolling.
+- Chain only when a later command must not run if an earlier one fails and the step cannot be split; usually make it separate steps instead.
+- Say in the step text when a command needs a value filled in (`CLAIM`, `<name>`), and keep the placeholder obvious.
+
 ## Prompts
 
 - The page puts each prompt under a label ("Predict first:", "While reading, ask:", "Then change it:", "Without notes:"). Write the question itself and do not repeat the label ("Before reading: ...", "While reading, ask why ...").

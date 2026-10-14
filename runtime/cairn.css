@@ -121,7 +121,7 @@ code { background: var(--code-bg); padding: .05rem .3rem; border-radius: .25rem;
 .code { position: relative; margin: .5rem 0; }
 .code pre {
   margin: 0; padding: .7rem 4.5rem .7rem .8rem; background: var(--code-bg);
-  border-radius: .4rem; overflow-x: auto;
+  border-radius: .4rem; white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .code pre code { background: none; padding: 0; }
 .code .copy { position: absolute; top: .4rem; right: .4rem; font-size: .8rem; padding: .1rem .5rem; }
@@ -165,7 +165,6 @@ code { background: var(--code-bg); padding: .05rem .3rem; border-radius: .25rem;
   .controls, #routes, #panel, #toast, .copy, .knownbtn, #banner,
   .progress, .blocked, .compare, details.notes { display: none !important; }
   .task { break-inside: avoid; }
-  .code pre { white-space: pre-wrap; overflow: visible; word-break: break-word; }
   details.answer summary { display: none; }
   .answer-body { background: none; border-left-color: #888; }
 }
