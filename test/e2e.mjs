@@ -84,7 +84,7 @@ try {
   check('initial hash is empty progress', await p.ev('location.hash') === '#v1.1.');
 
   // Answers: hidden behind a reveal, switchable at page level.
-  check('answer control visible when the path has answers', await p.ev('!document.getElementById("answers-control").hidden'));
+  check('answer control visible when the trail has answers', await p.ev('!document.getElementById("answers-control").hidden'));
   check('answers render closed by default', await p.ev('document.querySelectorAll("details.answer").length') === 13 &&
     await p.ev('document.querySelectorAll("details.answer[open]").length') === 0, await p.ev('document.querySelectorAll("details.answer").length'));
   await p.ev('document.querySelector("#t-identity details.answer summary").click()');

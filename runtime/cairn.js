@@ -1,8 +1,8 @@
 /*
- * cairn runtime: renders a learning path and tracks progress.
+ * cairn runtime: renders a learning trail and tracks progress.
  *
  * Pure helpers are exported for tests (node --test test/). The browser UI
- * starts automatically when a <script id="cairn-path" type="application/json">
+ * starts automatically when a <script id="cairn-trail" type="application/json">
  * element is present.
  */
 (function (root) {
@@ -180,10 +180,10 @@
     return taskModes(task).every((m) => d[m]);
   }
 
-  function progress(path, state) {
+  function progress(trail, state) {
     let total = 0;
     let done = 0;
-    for (const t of path.tasks) {
+    for (const t of trail.tasks) {
       for (const m of taskModes(t)) {
         total++;
         if ((state.done[t.id] || {})[m]) done++;
@@ -194,13 +194,13 @@
 
   // -------------------------------------------------------------------- hash
 
-  function encodeHash(path, state) {
+  function encodeHash(trail, state) {
     const parts = [];
-    for (const t of path.tasks) {
+    for (const t of trail.tasks) {
       const m = maskOf(state.done[t.id]);
       if (m) parts.push(t.id + '~' + m);
     }
-    return 'v1.' + path.version + '.' + parts.join('_');
+    return 'v1.' + trail.version + '.' + parts.join('_');
   }
 
   function decodeHash(hash) {
@@ -219,12 +219,12 @@
 
   // Apply checkbox masks from a hash to a state. Existing timestamps are kept
   // for modes that stay checked; newly checked modes get `now`.
-  function applyMasks(path, state, masks, now) {
+  function applyMasks(trail, state, masks, now) {
     const next = cloneState(state);
-    const known = new Set(path.tasks.map((t) => t.id));
+    const known = new Set(trail.tasks.map((t) => t.id));
     let unknown = 0;
     for (const id of Object.keys(masks)) if (!known.has(id)) unknown++;
-    for (const t of path.tasks) {
+    for (const t of trail.tasks) {
       const mask = masks[t.id] || 0;
       const cur = next.done[t.id] || {};
       const upd = {};
@@ -237,9 +237,9 @@
     return { state: next, unknown };
   }
 
-  function masksOf(path, state) {
+  function masksOf(trail, state) {
     const masks = {};
-    for (const t of path.tasks) {
+    for (const t of trail.tasks) {
       const m = maskOf(state.done[t.id]);
       if (m) masks[t.id] = m;
     }
@@ -279,14 +279,14 @@
     return new Uint8Array(await new Response(stream.readable).arrayBuffer());
   }
 
-  async function encodeToken(path, state) {
-    const json = JSON.stringify({ p: path.id, v: path.version, d: state.done, n: state.notes });
+  async function encodeToken(trail, state) {
+    const json = JSON.stringify({ p: trail.id, v: trail.version, d: state.done, n: state.notes });
     const bytes = await pipeBytes(new CompressionStream('deflate-raw'), new TextEncoder().encode(json));
     return TOKEN_PREFIX + toB64Url(bytes);
   }
 
   // Returns { state, unknown } or throws an Error with a user-facing message.
-  async function decodeToken(path, token) {
+  async function decodeToken(trail, token) {
     const t = String(token || '').trim();
     if (!t.startsWith(TOKEN_PREFIX)) throw new Error('Not a cairn progress token.');
     let obj;
@@ -296,8 +296,8 @@
     } catch (e) {
       throw new Error('Token is damaged or incomplete.');
     }
-    if (!obj || obj.p !== path.id) throw new Error('Token is for a different path.');
-    const known = new Map(path.tasks.map((t2) => [t2.id, t2]));
+    if (!obj || obj.p !== trail.id) throw new Error('Token is for a different trail.');
+    const known = new Map(trail.tasks.map((t2) => [t2.id, t2]));
     const state = emptyState();
     let unknown = 0;
     for (const id of Object.keys(obj.d || {})) {
@@ -358,8 +358,8 @@
   // ---------------------------------------------------------------- ordering
 
   // Prereq-first ordering of `ids` and everything they depend on.
-  function closure(path, ids) {
-    const byId = new Map(path.tasks.map((t) => [t.id, t]));
+  function closure(trail, ids) {
+    const byId = new Map(trail.tasks.map((t) => [t.id, t]));
     const seen = new Set();
     const out = [];
     function visit(id) {
@@ -386,11 +386,11 @@
     return r ? h + 'h' + r + 'm' : h + 'h';
   }
 
-  // The routes through a path: the recommended order plus one route per goal.
+  // The routes through a trail: the recommended order plus one route per goal.
   // Each route lists its tasks prereq-first with role 'target' (the goal's own
   // task) or 'prereq'. Minutes sum the estimates; `left` excludes finished tasks.
-  function routes(path, state) {
-    const byId = new Map(path.tasks.map((t) => [t.id, t]));
+  function routes(trail, state) {
+    const byId = new Map(trail.tasks.map((t) => [t.id, t]));
     const st = state || emptyState();
     function make(id, title, ids, targets) {
       const items = ids.filter((x) => byId.has(x)).map((x) => ({
@@ -407,8 +407,8 @@
       }
       return { id, title, items, minutes, left };
     }
-    const out = [make('recommended', 'Recommended flow', path.recommended, null)];
-    for (const g of path.goals || []) out.push(make(g.id, g.title, closure(path, g.tasks), new Set(g.tasks)));
+    const out = [make('recommended', 'Recommended flow', trail.recommended, null)];
+    for (const g of trail.goals || []) out.push(make(g.id, g.title, closure(trail, g.tasks), new Set(g.tasks)));
     return out;
   }
 
@@ -425,9 +425,9 @@
 
   if (typeof document === 'undefined') return;
 
-  function init(path) {
-    const byId = new Map(path.tasks.map((t) => [t.id, t]));
-    const skey = (k) => 'cairn:' + path.id + ':' + k;
+  function init(trail) {
+    const byId = new Map(trail.tasks.map((t) => [t.id, t]));
+    const skey = (k) => 'cairn:' + trail.id + ':' + k;
     const app = document.getElementById('app');
     let state = emptyState();
     let snaps = [];
@@ -491,13 +491,13 @@
     // ------------------------------------------------------------ rendering
 
     function viewIds() {
-      if (view === 'recommended') return path.recommended;
-      const g = path.goals.find((x) => x.id === view);
-      return g ? closure(path, g.tasks) : path.recommended;
+      if (view === 'recommended') return trail.recommended;
+      const g = trail.goals.find((x) => x.id === view);
+      return g ? closure(trail, g.tasks) : trail.recommended;
     }
 
     function goalTaskSet() {
-      const g = path.goals.find((x) => x.id === view);
+      const g = trail.goals.find((x) => x.id === view);
       return g ? new Set(g.tasks) : null;
     }
 
@@ -517,7 +517,7 @@
     }
 
     function cardHtml(t, inGoal) {
-      const section = (path.sections || []).find((s) => s.id === t.section);
+      const section = (trail.sections || []).find((s) => s.id === t.section);
       const parts = [];
       parts.push('<article class="task" id="t-' + t.id + '" data-id="' + t.id + '">');
       parts.push('<header><h2>' + esc(t.title) + '</h2>');
@@ -561,7 +561,7 @@
     // ------------------------------------------------------- answers (page level)
 
     function hasAnswers() {
-      return path.tasks.some((t) => (t.answers && Object.keys(t.answers).length) ||
+      return trail.tasks.some((t) => (t.answers && Object.keys(t.answers).length) ||
         (t.steps || []).some((s) => s.answer));
     }
 
@@ -588,7 +588,7 @@
     // ---------------------------------------------------------------- routes
 
     function renderRoutes() {
-      const rs = routes(path, state);
+      const rs = routes(trail, state);
       const cols = rs.map((r, i) => ({ r, label: i === 0 ? 'Rec' : 'G' + i }));
       const rec = rs[0];
       const head = '<tr><th scope="col">Task</th><th scope="col">Time</th>' + cols.map((c) =>
@@ -618,7 +618,7 @@
     // with the run's task count and total estimate.
     function sectionHeadHtml(ids, i) {
       const t = byId.get(ids[i]);
-      const sec = (path.sections || []).find((s) => s.id === t.section);
+      const sec = (trail.sections || []).find((s) => s.id === t.section);
       if (!sec || (i > 0 && byId.get(ids[i - 1]).section === t.section)) return '';
       let n = 0;
       let min = 0;
@@ -631,7 +631,7 @@
     }
 
     function updateProgress() {
-      const p = progress(path, state);
+      const p = progress(trail, state);
       document.getElementById('bar').style.width = p.pct + '%';
       document.getElementById('pct').textContent = p.done + ' / ' + p.total + ' (' + p.pct + '%)';
     }
@@ -653,17 +653,17 @@
         const btn = card.querySelector('.knownbtn');
         btn.hidden = !(goalSet && !goalSet.has(t.id) && !isTaskDone(t, state));
       });
-      history.replaceState(null, '', '#' + encodeHash(path, state));
+      history.replaceState(null, '', '#' + encodeHash(trail, state));
       const tf = document.getElementById('token');
       if (document.activeElement !== tf) {
-        encodeToken(path, state).then((tok) => { if (document.activeElement !== tf) tf.value = tok; });
+        encodeToken(trail, state).then((tok) => { if (document.activeElement !== tf) tf.value = tok; });
       }
     }
 
     function renderAll() {
       const ids = viewIds();
       const inGoal = goalTaskSet();
-      const g = path.goals.find((x) => x.id === view);
+      const g = trail.goals.find((x) => x.id === view);
       document.getElementById('goalinfo').innerHTML = g
         ? '<strong>' + esc(g.title) + '</strong>: ' + inline(g.description || '')
         : 'Recommended order for general learning.';
@@ -687,7 +687,7 @@
         return;
       }
       el.innerHTML = snaps.map((s, i) => {
-        const pct = progress(path, s.state).pct;
+        const pct = progress(trail, s.state).pct;
         return '<li>' + esc(new Date(s.t).toLocaleString()) + (s.name ? ' · ' + esc(s.name) : '') +
           (s.manual ? ' · saved' : '') + ' · ' + pct + '% <button type="button" data-restore="' + i + '">Restore</button></li>';
       }).join('');
@@ -792,7 +792,7 @@
     document.getElementById('restore').addEventListener('click', async () => {
       const tf = document.getElementById('token');
       try {
-        const r = await decodeToken(path, tf.value);
+        const r = await decodeToken(trail, tf.value);
         addSnapshot('before restore', false);
         state = r.state;
         commit();
@@ -835,20 +835,20 @@
 
     // ---------------------------------------------------------------- boot
 
-    document.title = path.title;
-    document.getElementById('title').textContent = path.title;
-    document.getElementById('intro').innerHTML = renderMarkdown(path.intro || '');
-    document.getElementById('sources').innerHTML = (path.sources || []).map((s) =>
+    document.title = trail.title;
+    document.getElementById('title').textContent = trail.title;
+    document.getElementById('intro').innerHTML = renderMarkdown(trail.intro || '');
+    document.getElementById('sources').innerHTML = (trail.sources || []).map((s) =>
       '<li><a href="' + esc(s.url) + '" target="_blank" rel="noopener noreferrer">' + esc(s.label) + '</a></li>').join('');
     const sel = document.getElementById('view');
     sel.innerHTML = '<option value="recommended">Recommended flow</option>' +
-      path.goals.map((g) => '<option value="' + esc(g.id) + '">Goal: ' + esc(g.title) + '</option>').join('');
+      trail.goals.map((g) => '<option value="' + esc(g.id) + '">Goal: ' + esc(g.title) + '</option>').join('');
 
     state = load('state', emptyState());
     snaps = load('snaps', []);
     lastSnapJson = snaps.length ? JSON.stringify(snaps[0].state) : '';
     view = load('view', 'recommended');
-    if (view !== 'recommended' && !path.goals.some((g) => g.id === view)) view = 'recommended';
+    if (view !== 'recommended' && !trail.goals.some((g) => g.id === view)) view = 'recommended';
     sel.value = view;
     answersOn = load('answers', 'on') !== 'off';
     document.getElementById('answers').checked = answersOn;
@@ -856,15 +856,15 @@
 
     const hashed = decodeHash(location.hash);
     if (hashed) {
-      const saved = masksOf(path, state);
+      const saved = masksOf(trail, state);
       if (!sameMasks(hashed.masks, saved)) {
-        const r = applyMasks(path, state, hashed.masks, Date.now());
+        const r = applyMasks(trail, state, hashed.masks, Date.now());
         preLinkState = cloneState(state);
         addSnapshot('before loading link', false);
         state = r.state;
         store('state', state);
         document.getElementById('banner').hidden = false;
-        if (r.unknown) toast(r.unknown + ' item(s) in the link are not in this version of the path.');
+        if (r.unknown) toast(r.unknown + ' item(s) in the link are not in this version of the trail.');
       }
     }
     renderAll();
@@ -873,7 +873,7 @@
   }
 
   function start() {
-    const el = document.getElementById('cairn-path');
+    const el = document.getElementById('cairn-trail');
     if (el) init(JSON.parse(el.textContent));
   }
 

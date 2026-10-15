@@ -1,18 +1,18 @@
-# Path format
+# Trail format
 
-A path is a directory that `tools/build.py` turns into one HTML file.
+A trail is a directory that `tools/build.py` turns into one HTML file. This page calls the directory the **trail source** and the HTML file the **trail page**; "trail" alone means either.
 
 ```
-my-path/
-  path.json
-  intro.md          optional (referenced from path.json)
+my-trail/
+  trail.json
+  intro.md          optional (referenced from trail.json)
   tasks/<id>.md     optional prose per task
   assets/*          images used by markdown
 ```
 
-## path.json or path.yaml
+## trail.json or trail.yaml
 
-The structure file is `path.json`, or `path.yaml` / `path.yml` if you prefer to edit by hand. Use exactly one. The fields are identical; this page shows JSON.
+The structure file is `trail.json`, or `trail.yaml` / `trail.yml` if you prefer to edit by hand. Use exactly one. The fields are identical; this page shows JSON.
 
 YAML needs PyYAML (`pip install pyyaml`); the build says so if it is missing, and JSON needs nothing beyond Python. YAML is loaded strictly: only `true` and `false` are booleans (so `on`, `no` and `yes` stay strings, which matters for ids), dates stay strings, and duplicate keys are errors. Block scalars drop their trailing newline, so a `|` block is a clean command. Comments are allowed.
 
@@ -31,9 +31,9 @@ YAML needs PyYAML (`pip install pyyaml`); the build says so if it is missing, an
       back into an array.
 ```
 
-A YAML build of a path is byte-identical to the build of the same path in JSON.
+A YAML build of a trail is byte-identical to the build of the same trail in JSON.
 
-## path.json
+## trail.json
 
 ```json
 {
@@ -54,7 +54,7 @@ A YAML build of a path is byte-identical to the build of the same path in JSON.
 | `id` | yes | `[a-z0-9-]{1,24}`. Keys saved progress in the browser. |
 | `title` | yes | |
 | `version` | no (1) | Integer. Bump it when tasks are added, removed, or renamed. |
-| `intro` | no | A `.md` filename relative to the path directory, or literal markdown. |
+| `intro` | no | A `.md` filename relative to the trail directory, or literal markdown. |
 | `sources` | no | `{label, url}` links shown at the top. `http(s)` only. |
 | `sections` | no | `{id, title}`. A task's `section` must be one of these. |
 | `tasks` | yes | See below. |
@@ -106,17 +106,17 @@ A task is a unit of 5–60 minutes of learning. The build warns above 60 minutes
 
 ## Section headings
 
-When a path has `sections`, the task list shows a heading before each run of tasks in the same section, with the run's task count and total estimate. A route that visits a section in two separate runs gets two headings, so keep `recommended` in section order. Tasks without a section get no heading.
+When a trail has `sections`, the task list shows a heading before each run of tasks in the same section, with the run's task count and total estimate. A route that visits a section in two separate runs gets two headings, so keep `recommended` in section order. Tasks without a section get no heading.
 
 ## Answers
 
-Answers sit behind a **Show answer** link under their prompt, so the learner attempts first. The page has an **Enable answers** checkbox (on by default) that shows or hides those links; it never reveals an answer itself. Turn it off to test yourself with no answers in view. It appears only when the path has answers, is remembered per path in the browser, and is not part of the hash or token.
+Answers sit behind a **Show answer** link under their prompt, so the learner attempts first. The page has an **Enable answers** checkbox (on by default) that shows or hides those links; it never reveals an answer itself. Turn it off to test yourself with no answers in view. It appears only when the trail has answers, is remembered per trail in the browser, and is not part of the hash or token.
 
 Printing produces a clean reference copy in light colors: progress, notes, "blocked by" hints, controls and the routes panel are left out, and long commands wrap. When printing, answers are included, all expanded, if **Enable answers** is on, and left out if it is off. Answers are markdown with the same subset as task bodies, and relative images are inlined.
 
 ## Routes panel
 
-Every page has a collapsed **Routes through this path** panel: a matrix of tasks against the recommended flow and each goal (● the route's own task, ○ a prerequisite pulled in), with the total time and time left per route. Clicking a column switches the view; clicking a task jumps to it. It is generated from `tasks`, `goals`, `recommended` and `estimate`; there is nothing to author.
+Every page has a collapsed **Routes through this trail** panel: a matrix of tasks against the recommended flow and each goal (● the route's own task, ○ a prerequisite pulled in), with the total time and time left per route. Clicking a column switches the view; clicking a task jumps to it. It is generated from `tasks`, `goals`, `recommended` and `estimate`; there is nothing to author.
 
 ## Markdown
 
@@ -137,6 +137,6 @@ Progress is keyed by task id and mode:
 
 - **URL hash**: `#v1.<version>.<id>~<mask>_...`, with mask bits read=1, do=2, explain=4.
 - **Token**: `cairn1:` plus compressed JSON of checkmarks (with completion timestamps) and notes.
-- **Browser storage**: current state plus snapshots, per path id.
+- **Browser storage**: current state plus snapshots, per trail id.
 
-Ids not present in the current path are ignored when loading a hash or token, so old progress survives edits, except for tasks that were renamed or removed.
+Ids not present in the current trail are ignored when loading a hash or token, so old progress survives edits, except for tasks that were renamed or removed.

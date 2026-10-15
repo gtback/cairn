@@ -1,6 +1,6 @@
 # cairn
 
-Turn a pile of sources into a learning path you can share, follow, and track, as one self-contained HTML file.
+Turn a pile of sources into a trail you can share, follow, and track, as one self-contained HTML file.
 
 A cairn is a stack of stones that marks a trail. Each task you finish leaves one behind.
 
@@ -8,7 +8,7 @@ A cairn is a stack of stones that marks a trail. Each task you finish leaves one
 
 ## What you get
 
-- One HTML file per path. No server, no network, no dependencies. Open it from disk or host it anywhere.
+- One HTML file per trail. No server, no network, no dependencies. Open it from disk or host it anywhere.
 - A recommended flow for general learning, plus goals ("choose your own adventure") that show only the tasks they need, prerequisites first.
 - Tasks of 5–60 minutes with a markdown body, ordered steps, copyable commands, links, and images (slides and diagrams are inlined).
 - Per-task **read / do / explain** checkboxes.
@@ -24,40 +24,46 @@ A cairn is a stack of stones that marks a trail. Each task you finish leaves one
 
 ```bash
 make test                          # unit tests (needs node 22+ and python3)
-make build                         # builds paths/example -> dist/example.html
+make build                         # builds trails/example -> dist/example.html
 open dist/example.html
-python3 tools/build.py path/to/my-path -o my-path.html
+python3 tools/build.py path/to/my-trail -o my-trail.html
 ```
 
 `make e2e` drives headless Chrome through the whole UI (needs Chrome; set `CHROME=` if it is not at the macOS default location).
 
-## Writing a path
+## Terms
 
-A path is a directory:
+- **Trail**: a learning plan. It covers both of the next two.
+- **Trail source**: the directory you author (`trail.json` or `trail.yaml`, `intro.md`, `tasks/`, `assets/`).
+- **Trail page**: the single self-contained HTML file built from a trail source.
+
+## Writing a trail
+
+A trail is a directory:
 
 ```
-my-path/
-  path.json      structure: tasks, modes, prereqs, goals, recommended order
-                 (or path.yaml, which needs PyYAML)
+my-trail/
+  trail.json      structure: tasks, modes, prereqs, goals, recommended order
+                 (or trail.yaml, which needs PyYAML)
   intro.md       optional intro
   tasks/<id>.md  optional prose for each task
   assets/        images referenced from markdown
 ```
 
-See [docs/path-format.md](docs/path-format.md) for the format and [paths/example](paths/example) for a small working example. The build validates everything (ids, references, cycles, modes, images) and lists every problem at once.
+See [docs/trail-format.md](docs/trail-format.md) for the format and [trails/example](trails/example) for a small working example. The build validates everything (ids, references, cycles, modes, images) and lists every problem at once.
 
 ## The skill
 
-[`skills/cairn`](skills/cairn/SKILL.md) is an agent skill that interviews you, gathers and verifies sources, drafts an outline for your approval, then writes and builds the path. It follows the principles in [docs/pedagogy.md](docs/pedagogy.md) and reads an optional personal profile at `~/.config/cairn/profile.md`.
+[`skills/cairn`](skills/cairn/SKILL.md) is an agent skill that interviews you, gathers and verifies sources, drafts an outline for your approval, then writes and builds the trail. It follows the principles in [docs/pedagogy.md](docs/pedagogy.md) and reads an optional personal profile at `~/.config/cairn/profile.md`.
 
 ## Layout
 
 | Path | Purpose |
 |---|---|
 | `runtime/` | The shared engine (`cairn.js`), styles, and HTML shell inlined into every built page |
-| `tools/build.py` | Validates a path directory and builds the single-file page |
+| `tools/build.py` | Validates a trail directory and builds the single-file page |
 | `test/` | Node tests for the engine, and a headless-Chrome end-to-end check |
-| `paths/example/` | A small generic example ("Learn jq") |
+| `trails/example/` | A small generic example ("Learn jq") |
 | `docs/` | Path format and pedagogy notes |
 | `skills/cairn/` | The authoring skill |
 

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Validate a cairn path directory and build it into one self-contained HTML file.
+"""Validate a cairn trail directory and build it into one self-contained HTML file.
 
 Usage:
-    build.py PATH_DIR [-o OUTPUT.html]
+    build.py TRAIL_DIR [-o OUTPUT.html]
 
-PATH_DIR contains path.json (or path.yaml, which needs PyYAML), optional intro.md, tasks/<id>.md bodies and
+TRAIL_DIR contains trail.json (or trail.yaml, which needs PyYAML), optional intro.md, tasks/<id>.md bodies and
 assets/. Relative images in markdown are inlined as data URIs. Without -o the
-output is dist/<path id>.html next to this repository's runtime/.
+output is dist/<trail id>.html next to this repository's runtime/.
 """
 
 import argparse
@@ -33,7 +33,7 @@ TASK_KEYS = {"id", "section", "title", "modes", "estimate", "predict", "elaborat
 ANSWER_KEYS = ("predict", "elaborate", "modify", "explain")
 
 
-class PathError(Exception):
+class TrailError(Exception):
     def __init__(self, errors):
         super().__init__("\n".join(errors))
         self.errors = errors
@@ -46,7 +46,7 @@ def inline_images(markdown, base_dir, where, errors, warnings):
             return match.group(0)
         file = (base_dir / src).resolve()
         if base_dir.resolve() not in file.parents:
-            errors.append(f"{where}: image {src!r} is outside the path directory")
+            errors.append(f"{where}: image {src!r} is outside the trail directory")
             return match.group(0)
         if not file.is_file():
             errors.append(f"{where}: image {src!r} not found")
@@ -67,16 +67,16 @@ def read_text(file):
     return file.read_text(encoding="utf-8")
 
 
-SPEC_NAMES = ("path.json", "path.yaml", "path.yml")
+SPEC_NAMES = ("trail.json", "trail.yaml", "trail.yml")
 
 
 def load_yaml(file):
-    """Parse a YAML path file strictly: only true/false are booleans, nothing becomes a date,
+    """Parse a YAML trail file strictly: only true/false are booleans, nothing becomes a date,
     duplicate keys are errors, and block scalars lose their trailing newline."""
     try:
         import yaml
     except ImportError:
-        raise PathError([f"{file.name} needs PyYAML: pip install pyyaml (or use path.json)"])
+        raise TrailError([f"{file.name} needs PyYAML: pip install pyyaml (or use trail.json)"])
 
     class Loader(yaml.SafeLoader):
         pass
@@ -112,38 +112,38 @@ def load_yaml(file):
     try:
         return tidy(yaml.load(read_text(file), Loader=Loader))
     except yaml.YAMLError as e:
-        raise PathError([f"{file.name} is not valid YAML: {e}"])
+        raise TrailError([f"{file.name} is not valid YAML: {e}"])
 
 
-def load_spec(path_dir):
-    """Return (spec file, parsed spec) from path.json or path.yaml/.yml (exactly one)."""
-    found = [path_dir / n for n in SPEC_NAMES if (path_dir / n).is_file()]
+def load_spec(trail_dir):
+    """Return (spec file, parsed spec) from trail.json or trail.yaml/.yml (exactly one)."""
+    found = [trail_dir / n for n in SPEC_NAMES if (trail_dir / n).is_file()]
     if not found:
-        raise PathError([f"{path_dir / 'path.json'} not found (path.yaml is also accepted)"])
+        raise TrailError([f"{trail_dir / 'trail.json'} not found (trail.yaml is also accepted)"])
     if len(found) > 1:
-        raise PathError(["found " + " and ".join(f.name for f in found) + "; keep only one"])
+        raise TrailError(["found " + " and ".join(f.name for f in found) + "; keep only one"])
     file = found[0]
     if file.suffix == ".json":
         try:
             return file, json.loads(read_text(file))
         except json.JSONDecodeError as e:
-            raise PathError([f"{file.name} is not valid JSON: {e}"])
+            raise TrailError([f"{file.name} is not valid JSON: {e}"])
     return file, load_yaml(file)
 
 
-def validate_and_load(path_dir):
-    """Return (normalized path dict, warnings). Raise PathError listing every problem."""
+def validate_and_load(trail_dir):
+    """Return (normalized trail dict, warnings). Raise TrailError listing every problem."""
     errors, warnings = [], []
-    path_dir = Path(path_dir)
-    spec_file, spec = load_spec(path_dir)
+    trail_dir = Path(trail_dir)
+    spec_file, spec = load_spec(trail_dir)
     if not isinstance(spec, dict):
-        raise PathError([f"{spec_file.name} must contain an object"])
+        raise TrailError([f"{spec_file.name} must contain an object"])
 
     pid = spec.get("id")
     if not isinstance(pid, str) or not ID_RE.match(pid):
-        errors.append(f"path id {pid!r} must match [a-z0-9-]{{1,24}}")
+        errors.append(f"trail id {pid!r} must match [a-z0-9-]{{1,24}}")
     if not isinstance(spec.get("title"), str) or not spec["title"].strip():
-        errors.append("path title is required")
+        errors.append("trail title is required")
     version = spec.get("version", 1)
     if not isinstance(version, int) or isinstance(version, bool) or version < 1:
         errors.append("version must be an integer >= 1")
@@ -227,7 +227,7 @@ def validate_and_load(path_dir):
                 errors.append(f"{where}: links[{i}] url must be http(s) or mailto")
         if not isinstance(t.get("prereqs", []), list):
             errors.append(f"{where}: prereqs must be a list")
-        body_file = path_dir / "tasks" / f"{tid}.md" if isinstance(tid, str) else None
+        body_file = trail_dir / "tasks" / f"{tid}.md" if isinstance(tid, str) else None
         body = ""
         if body_file is not None and body_file.is_file():
             body = read_text(body_file)
@@ -235,17 +235,17 @@ def validate_and_load(path_dir):
                 errors.append(f"{where}: has both tasks/{tid}.md and an inline 'body'")
         elif isinstance(t.get("body"), str):
             body = t["body"]
-        body = inline_images(body, path_dir, where, errors, warnings)
+        body = inline_images(body, trail_dir, where, errors, warnings)
         out = {k: v for k, v in t.items() if k in TASK_KEYS and k != "body"}
         out["modes"] = modes
         out["prereqs"] = list(t.get("prereqs", []))
         out["body"] = body
         if answers:
-            out["answers"] = {k: inline_images(v, path_dir, where, errors, warnings)
+            out["answers"] = {k: inline_images(v, trail_dir, where, errors, warnings)
                               for k, v in answers.items() if isinstance(v, str)}
         if isinstance(out.get("steps"), list):
             out["steps"] = [
-                {**step, "answer": inline_images(step["answer"], path_dir, where, errors, warnings)}
+                {**step, "answer": inline_images(step["answer"], trail_dir, where, errors, warnings)}
                 if isinstance(step, dict) and isinstance(step.get("answer"), str) else step
                 for step in out["steps"]
             ]
@@ -301,9 +301,9 @@ def validate_and_load(path_dir):
 
     intro = spec.get("intro", "")
     if isinstance(intro, str) and intro.endswith(".md"):
-        intro_file = path_dir / intro
+        intro_file = trail_dir / intro
         if intro_file.is_file():
-            intro = inline_images(read_text(intro_file), path_dir, "intro", errors, warnings)
+            intro = inline_images(read_text(intro_file), trail_dir, "intro", errors, warnings)
         else:
             errors.append(f"intro file {intro!r} not found")
             intro = ""
@@ -313,13 +313,13 @@ def validate_and_load(path_dir):
             errors.append(f"sources[{i}] needs 'label' and an http(s) 'url'")
 
     if errors:
-        raise PathError(errors)
-    path = {
+        raise TrailError(errors)
+    trail = {
         "id": pid, "title": spec["title"], "version": version, "intro": intro,
         "sources": spec.get("sources", []), "sections": sections,
         "tasks": out_tasks, "goals": goals, "recommended": recommended,
     }
-    return path, warnings
+    return trail, warnings
 
 
 def find_cycle(tasks, task_ids):
@@ -363,37 +363,37 @@ def topo_order(tasks, task_ids):
     return out
 
 
-def render(path):
+def render(trail):
     shell = read_text(RUNTIME / "shell.html")
     css = read_text(RUNTIME / "cairn.css")
     js = read_text(RUNTIME / "cairn.js")
     if "</script" in js.lower():
-        raise PathError(["runtime/cairn.js must not contain '</script'"])
+        raise TrailError(["runtime/cairn.js must not contain '</script'"])
     # Escaping every '<' keeps '</script>' and '<!--' in content from affecting the HTML parser.
-    blob = json.dumps(path, ensure_ascii=False).replace("<", "\\u003c").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
-    # The path blob is inserted last so content containing a placeholder is never re-expanded.
+    blob = json.dumps(trail, ensure_ascii=False).replace("<", "\\u003c").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
+    # The trail blob is inserted last so content containing a placeholder is never re-expanded.
     html = shell.replace("/*CAIRN_CSS*/", css).replace("/*CAIRN_JS*/", js)
-    return html.replace("/*CAIRN_PATH*/", blob)
+    return html.replace("/*CAIRN_TRAIL*/", blob)
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("path_dir")
+    ap.add_argument("trail_dir")
     ap.add_argument("-o", "--output")
     args = ap.parse_args(argv)
     try:
-        path, warnings = validate_and_load(args.path_dir)
-        html = render(path)
-    except PathError as e:
+        trail, warnings = validate_and_load(args.trail_dir)
+        html = render(trail)
+    except TrailError as e:
         for err in e.errors:
             print(f"error: {err}", file=sys.stderr)
         return 1
     for w in warnings:
         print(f"warning: {w}", file=sys.stderr)
-    out = Path(args.output) if args.output else ROOT / "dist" / f"{path['id']}.html"
+    out = Path(args.output) if args.output else ROOT / "dist" / f"{trail['id']}.html"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding="utf-8")
-    print(f"wrote {out} ({len(path['tasks'])} tasks, {len(path['goals'])} goals, {len(html) // 1000} KB)")
+    print(f"wrote {out} ({len(trail['tasks'])} tasks, {len(trail['goals'])} goals, {len(html) // 1000} KB)")
     return 0
 
 

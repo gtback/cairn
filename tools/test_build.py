@@ -39,7 +39,7 @@ class BuildTest(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
 
     def write(self, spec, files=None):
-        (self.dir / "path.json").write_text(json.dumps(spec))
+        (self.dir / "trail.json").write_text(json.dumps(spec))
         for name, content in (files or {}).items():
             f = self.dir / name
             f.parent.mkdir(parents=True, exist_ok=True)
@@ -47,7 +47,7 @@ class BuildTest(unittest.TestCase):
 
     def errors(self, spec, files=None):
         self.write(spec, files)
-        with self.assertRaises(build.PathError) as cm:
+        with self.assertRaises(build.TrailError) as cm:
             build.validate_and_load(self.dir)
         return cm.exception.errors
 
@@ -56,11 +56,11 @@ class BuildTest(unittest.TestCase):
 
     def test_valid_path_loads_and_renders(self):
         self.write(good_spec(), {"tasks/a.md": "Read this."})
-        path, warnings = build.validate_and_load(self.dir)
+        trail, warnings = build.validate_and_load(self.dir)
         self.assertEqual(warnings, [])
-        self.assertEqual(path["tasks"][0]["body"], "Read this.")
-        html = build.render(path)
-        self.assertIn('id="cairn-path"', html)
+        self.assertEqual(trail["tasks"][0]["body"], "Read this.")
+        html = build.render(trail)
+        self.assertIn('id="cairn-trail"', html)
         self.assertNotIn("/*CAIRN_", html)
         self.assertEqual(html.count("</script>"), 2)
 
@@ -69,8 +69,8 @@ class BuildTest(unittest.TestCase):
         spec["tasks"].reverse()
         del spec["recommended"]
         self.write(spec)
-        path, _ = build.validate_and_load(self.dir)
-        self.assertEqual(path["recommended"], ["a", "b"])
+        trail, _ = build.validate_and_load(self.dir)
+        self.assertEqual(trail["recommended"], ["a", "b"])
 
     def test_duplicate_and_malformed_ids(self):
         spec = good_spec()
@@ -140,19 +140,19 @@ class BuildTest(unittest.TestCase):
 
     def test_images_are_inlined(self):
         self.write(good_spec(), {"tasks/a.md": "![diagram](assets/d.png)", "assets/d.png": PNG})
-        path, _ = build.validate_and_load(self.dir)
-        self.assertIn("![diagram](data:image/png;base64,", path["tasks"][0]["body"])
+        trail, _ = build.validate_and_load(self.dir)
+        self.assertIn("![diagram](data:image/png;base64,", trail["tasks"][0]["body"])
 
     def test_missing_image_and_escape_attempt(self):
         errs = self.errors(good_spec(), {"tasks/a.md": "![x](assets/missing.png)"})
         self.assertError(errs, "not found")
         errs = self.errors(good_spec(), {"tasks/a.md": "![x](../outside.png)"})
-        self.assertError(errs, "outside the path directory")
+        self.assertError(errs, "outside the trail directory")
 
     def test_remote_images_are_left_alone(self):
         self.write(good_spec(), {"tasks/a.md": "![x](https://example.com/x.png)"})
-        path, _ = build.validate_and_load(self.dir)
-        self.assertIn("https://example.com/x.png", path["tasks"][0]["body"])
+        trail, _ = build.validate_and_load(self.dir)
+        self.assertIn("https://example.com/x.png", trail["tasks"][0]["body"])
 
     def test_body_file_and_inline_body_conflict(self):
         spec = good_spec()
@@ -163,8 +163,8 @@ class BuildTest(unittest.TestCase):
         spec = good_spec()
         spec["tasks"][0]["title"] = "</script><script>alert(1)</script>"
         self.write(spec, {"tasks/a.md": "x </script> y"})
-        path, _ = build.validate_and_load(self.dir)
-        html = build.render(path)
+        trail, _ = build.validate_and_load(self.dir)
+        html = build.render(trail)
         self.assertEqual(html.count("</script>"), 2)
         self.assertNotIn("<script>alert(1)", html)
 
@@ -172,16 +172,16 @@ class BuildTest(unittest.TestCase):
         spec = good_spec()
         spec["intro"] = "intro.md"
         self.write(spec, {"intro.md": "Welcome."})
-        path, _ = build.validate_and_load(self.dir)
-        self.assertEqual(path["intro"], "Welcome.")
+        trail, _ = build.validate_and_load(self.dir)
+        self.assertEqual(trail["intro"], "Welcome.")
         spec["intro"] = "missing.md"
         self.assertError(self.errors(spec), "intro file")
 
     def test_invalid_json_and_missing_file(self):
-        (self.dir / "path.json").write_text("{not json")
-        with self.assertRaises(build.PathError):
+        (self.dir / "trail.json").write_text("{not json")
+        with self.assertRaises(build.TrailError):
             build.validate_and_load(self.dir)
-        with self.assertRaises(build.PathError):
+        with self.assertRaises(build.TrailError):
             build.validate_and_load(self.dir / "nowhere")
 
     def yaml_available(self):
@@ -194,16 +194,16 @@ class BuildTest(unittest.TestCase):
         self.yaml_available()
         import yaml
         spec = good_spec()
-        (self.dir / "path.yaml").write_text(yaml.safe_dump(spec, sort_keys=False))
+        (self.dir / "trail.yaml").write_text(yaml.safe_dump(spec, sort_keys=False))
         from_yaml, _ = build.validate_and_load(self.dir)
-        (self.dir / "path.yaml").unlink()
+        (self.dir / "trail.yaml").unlink()
         self.write(spec)
         from_json, _ = build.validate_and_load(self.dir)
         self.assertEqual(from_yaml, from_json)
 
     def test_yaml_block_scalars_comments_and_strict_types(self):
         self.yaml_available()
-        (self.dir / "path.yaml").write_text(
+        (self.dir / "trail.yaml").write_text(
             "# comment\n"
             "id: demo\n"
             "title: Demo\n"
@@ -219,9 +219,9 @@ class BuildTest(unittest.TestCase):
             "        cmd: |\n"
             "          echo \"hi: there\" # not a comment\n"
         )
-        path, warnings = build.validate_and_load(self.dir)
+        trail, warnings = build.validate_and_load(self.dir)
         self.assertEqual(warnings, [])
-        task = path["tasks"][0]
+        task = trail["tasks"][0]
         self.assertEqual(task["id"], "no")
         self.assertEqual(task["section"], "on")
         self.assertEqual(task["title"], "2026-10-13")
@@ -229,26 +229,26 @@ class BuildTest(unittest.TestCase):
 
     def test_yaml_errors(self):
         self.yaml_available()
-        (self.dir / "path.yaml").write_text("id: a\nid: b\ntitle: T\ntasks: []\n")
-        with self.assertRaises(build.PathError) as cm:
+        (self.dir / "trail.yaml").write_text("id: a\nid: b\ntitle: T\ntasks: []\n")
+        with self.assertRaises(build.TrailError) as cm:
             build.validate_and_load(self.dir)
         self.assertError(cm.exception.errors, "duplicate key 'id'")
-        (self.dir / "path.yaml").write_text("id: [unclosed\n")
-        with self.assertRaises(build.PathError) as cm:
+        (self.dir / "trail.yaml").write_text("id: [unclosed\n")
+        with self.assertRaises(build.TrailError) as cm:
             build.validate_and_load(self.dir)
         self.assertError(cm.exception.errors, "not valid YAML")
 
     def test_yaml_without_pyyaml_says_how_to_fix_it(self):
-        (self.dir / "path.yaml").write_text("id: demo\n")
+        (self.dir / "trail.yaml").write_text("id: demo\n")
         with unittest.mock.patch.dict(sys.modules, {"yaml": None}):
-            with self.assertRaises(build.PathError) as cm:
+            with self.assertRaises(build.TrailError) as cm:
                 build.validate_and_load(self.dir)
         self.assertError(cm.exception.errors, "needs PyYAML")
 
     def test_json_and_yaml_together_is_an_error(self):
         self.write(good_spec())
-        (self.dir / "path.yaml").write_text("id: demo\n")
-        with self.assertRaises(build.PathError) as cm:
+        (self.dir / "trail.yaml").write_text("id: demo\n")
+        with self.assertRaises(build.TrailError) as cm:
             build.validate_and_load(self.dir)
         self.assertError(cm.exception.errors, "keep only one")
 
@@ -258,10 +258,10 @@ class BuildTest(unittest.TestCase):
         spec["tasks"][1]["answers"]["predict"] = "Nothing much."
         spec["tasks"][1]["steps"][0].update({"predict": "Output?", "answer": "hi"})
         self.write(spec)
-        path, warnings = build.validate_and_load(self.dir)
+        trail, warnings = build.validate_and_load(self.dir)
         self.assertEqual(warnings, [])
-        self.assertEqual(path["tasks"][1]["answers"], {"explain": "B is B.", "predict": "Nothing much."})
-        self.assertEqual(path["tasks"][1]["steps"][0]["answer"], "hi")
+        self.assertEqual(trail["tasks"][1]["answers"], {"explain": "B is B.", "predict": "Nothing much."})
+        self.assertEqual(trail["tasks"][1]["steps"][0]["answer"], "hi")
 
     def test_answer_errors(self):
         spec = good_spec()
@@ -283,8 +283,8 @@ class BuildTest(unittest.TestCase):
         spec = good_spec()
         spec["tasks"][1]["answers"]["explain"] = "See ![d](assets/p.png)"
         self.write(spec, {"assets/p.png": PNG})
-        path, _ = build.validate_and_load(self.dir)
-        self.assertIn("data:image/png;base64,", path["tasks"][1]["answers"]["explain"])
+        trail, _ = build.validate_and_load(self.dir)
+        self.assertIn("data:image/png;base64,", trail["tasks"][1]["answers"]["explain"])
 
     def test_cli_reports_every_error_and_exit_code(self):
         spec = good_spec()
@@ -307,9 +307,9 @@ class BuildTest(unittest.TestCase):
         self.assertTrue(out.is_file())
 
     def test_example_path_builds_without_warnings(self):
-        example = Path(__file__).resolve().parent.parent / "paths" / "example"
-        if not (example / "path.json").exists():
-            self.skipTest("example path not present")
+        example = Path(__file__).resolve().parent.parent / "trails" / "example"
+        if not (example / "trail.json").exists():
+            self.skipTest("example trail not present")
         _, warnings = build.validate_and_load(example)
         self.assertEqual(warnings, [])
 

@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const C = require('../runtime/cairn.js');
 
-const path = {
+const trail = {
   id: 'demo',
   version: 3,
   tasks: [
@@ -21,14 +21,14 @@ test('hash round-trips checkbox masks', () => {
   const state = C.emptyState();
   state.done.a = { read: 1, explain: 2 };
   state.done.c = { do: 3 };
-  const hash = C.encodeHash(path, state);
+  const hash = C.encodeHash(trail, state);
   assert.equal(hash, 'v1.3.a~5_c~2');
   const decoded = C.decodeHash('#' + hash);
   assert.deepEqual(decoded, { version: 3, masks: { a: 5, c: 2 } });
 });
 
 test('hash with no progress and malformed hashes', () => {
-  assert.equal(C.encodeHash(path, C.emptyState()), 'v1.3.');
+  assert.equal(C.encodeHash(trail, C.emptyState()), 'v1.3.');
   assert.deepEqual(C.decodeHash('v1.3.'), { version: 3, masks: {} });
   assert.equal(C.decodeHash(''), null);
   assert.equal(C.decodeHash('#nonsense'), null);
@@ -38,11 +38,11 @@ test('hash with no progress and malformed hashes', () => {
 test('applyMasks keeps timestamps, stamps new checks, drops unchecked, counts unknown ids', () => {
   const state = C.emptyState();
   state.done.a = { read: 111, explain: 222 };
-  const { state: next, unknown } = C.applyMasks(path, state, { a: 1, b: 2, zzz: 1 }, NOW);
+  const { state: next, unknown } = C.applyMasks(trail, state, { a: 1, b: 2, zzz: 1 }, NOW);
   assert.deepEqual(next.done.a, { read: 111 });
   assert.deepEqual(next.done.b, { do: NOW });
   assert.equal(unknown, 1);
-  assert.ok(C.sameMasks(C.masksOf(path, next), { a: 1, b: 2 }));
+  assert.ok(C.sameMasks(C.masksOf(trail, next), { a: 1, b: 2 }));
   assert.ok(!C.sameMasks({ a: 1 }, { a: 1, b: 2 }));
 });
 
@@ -51,45 +51,45 @@ test('token round-trips done timestamps and notes, including unicode', async () 
   state.done.a = { read: 1000, explain: 2000 };
   state.done.c = { do: 3000 };
   state.notes.a = ['in my words: café ☕ 日本語', '', 'q?'];
-  const token = await C.encodeToken(path, state);
+  const token = await C.encodeToken(trail, state);
   assert.ok(token.startsWith('cairn1:'));
   assert.match(token, /^cairn1:[A-Za-z0-9_-]+$/);
-  const { state: back, unknown } = await C.decodeToken(path, token);
+  const { state: back, unknown } = await C.decodeToken(trail, token);
   assert.equal(unknown, 0);
   assert.deepEqual(back, state);
 });
 
-test('token ignores unknown ids and rejects other paths and garbage', async () => {
-  const other = Object.assign({}, path, { tasks: path.tasks.concat([{ id: 'z', title: 'Z', modes: ['read'] }]) });
+test('token ignores unknown ids and rejects other trails and garbage', async () => {
+  const other = Object.assign({}, trail, { tasks: trail.tasks.concat([{ id: 'z', title: 'Z', modes: ['read'] }]) });
   const state = C.emptyState();
   state.done.z = { read: 5 };
   state.done.a = { read: 6 };
   state.notes.z = ['x'];
   const token = await C.encodeToken(other, state);
-  const { state: back, unknown } = await C.decodeToken(path, token);
+  const { state: back, unknown } = await C.decodeToken(trail, token);
   assert.deepEqual(back.done, { a: { read: 6 } });
   assert.deepEqual(back.notes, {});
   assert.equal(unknown, 2);
 
-  await assert.rejects(C.decodeToken({ id: 'different', version: 1, tasks: [] }, token), /different path/);
-  await assert.rejects(C.decodeToken(path, 'hello'), /Not a cairn/);
-  await assert.rejects(C.decodeToken(path, 'cairn1:AAAA'), /damaged/);
+  await assert.rejects(C.decodeToken({ id: 'different', version: 1, tasks: [] }, token), /different trail/);
+  await assert.rejects(C.decodeToken(trail, 'hello'), /Not a cairn/);
+  await assert.rejects(C.decodeToken(trail, 'cairn1:AAAA'), /damaged/);
 });
 
 test('progress counts checked modes', () => {
   const state = C.emptyState();
   state.done.a = { read: 1 };
   state.done.b = { do: 1 };
-  assert.deepEqual(C.progress(path, state), { done: 2, total: 6, pct: 33 });
-  assert.ok(C.isTaskDone(path.tasks[1], state));
-  assert.ok(!C.isTaskDone(path.tasks[0], state));
+  assert.deepEqual(C.progress(trail, state), { done: 2, total: 6, pct: 33 });
+  assert.ok(C.isTaskDone(trail.tasks[1], state));
+  assert.ok(!C.isTaskDone(trail.tasks[0], state));
 });
 
 test('closure orders prerequisites first and de-duplicates', () => {
-  assert.deepEqual(C.closure(path, ['c']), ['a', 'b', 'c']);
-  assert.deepEqual(C.closure(path, ['c', 'd']), ['a', 'b', 'c', 'd']);
-  assert.deepEqual(C.closure(path, ['d', 'c']), ['a', 'd', 'b', 'c']);
-  assert.deepEqual(C.closure(path, ['missing']), []);
+  assert.deepEqual(C.closure(trail, ['c']), ['a', 'b', 'c']);
+  assert.deepEqual(C.closure(trail, ['c', 'd']), ['a', 'b', 'c', 'd']);
+  assert.deepEqual(C.closure(trail, ['d', 'c']), ['a', 'd', 'b', 'c']);
+  assert.deepEqual(C.closure(trail, ['missing']), []);
 });
 
 test('snapshot pruning thins automatic snapshots over a year and keeps manual ones', () => {

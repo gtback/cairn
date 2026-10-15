@@ -1,18 +1,18 @@
 # cairn skill
 
-An agent skill that builds learning paths for [cairn](../../README.md).
+An agent skill that builds trails for [cairn](../../README.md).
 
 ## Usage
 
 Ask in natural language:
 
 - "make a learning plan for <topic> from these docs"
-- "turn this deck into a learning path"
-- "update my cairn path and add a task about X"
+- "turn this deck into a trail"
+- "update my cairn trail and add a task about X"
 
 ## What it does
 
-Reads your optional profile (`~/.config/cairn/profile.md`), interviews you, reads and verifies the sources, proposes an outline for approval, then writes `path.json` and the task files and builds one self-contained HTML page. It flags repos referenced by the sources that are not cloned locally.
+Reads your optional profile (`~/.config/cairn/profile.md`), interviews you, reads and verifies the sources, proposes an outline for approval, then writes `trail.json` and the task files and builds one self-contained HTML page. It flags repos referenced by the sources that are not cloned locally.
 
 ## Requirements
 

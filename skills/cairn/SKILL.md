@@ -2,27 +2,27 @@
 name: cairn
 description: >-
   Use this skill to turn sources (slide decks, docs, repos, URLs) into a
-  shareable, trackable learning path: a single self-contained HTML page with a
+  shareable, trackable trail: a single self-contained HTML page with a
   recommended flow, goal-based routes with prerequisites, copyable commands,
   read/do/explain checkboxes, notes, and progress that can be shared and
-  restored. Trigger on "make a learning plan", "learning path", "onboarding
+  restored. Trigger on "make a learning plan", "learning path", "trail", "onboarding
   plan", "study plan for <topic>", "turn this deck into a plan", or
-  "update my cairn path".
+  "update my cairn trail".
 license: Apache-2.0
 compatibility: Requires python3 and a local checkout of the cairn repo (CAIRN_HOME, or found from this skill's directory).
 allowed-tools: Bash(python3:*) Read Write
 ---
 
-# cairn: build a learning path
+# cairn: build a trail
 
 ## Goal
 
-Produce a path directory (`path.json`, `intro.md`, `tasks/*.md`, `assets/`) and
+Produce a trail directory (`trail.json`, `intro.md`, `tasks/*.md`, `assets/`) and
 build it into one HTML file with the cairn runtime. The result must be accurate
 (every link, path and command verified), small enough tasks to finish, and
 shaped by learning research. Read these before drafting:
 
-- `$CAIRN_HOME/docs/path-format.md`: the exact format and validation rules.
+- `$CAIRN_HOME/docs/trail-format.md`: the exact format and validation rules.
 - `$CAIRN_HOME/docs/pedagogy.md`: what the evidence supports.
 - [references/authoring.md](references/authoring.md): how to write good tasks.
 
@@ -38,18 +38,18 @@ Do not recreate the tooling.
    by area, preferred task mix, session length, note style, tools available. If
    it does not exist, ask a few questions and offer to save one. Never record
    learning-style or modality preferences.
-2. **Intake.** Ask for: the topic, the sources, who the path is for (just them
+2. **Intake.** Ask for: the topic, the sources, who the trail is for (just them
    or shared), concrete goals ("be able to ..."), the time budget, and where to
    write output. Suggest a root (default `~/learning-paths`, or the root set in
-   the profile) with the source in `<root>/<path-id>/` and the built page as its
-   sibling `<root>/<path-id>.html`. Confirm the location each time.
+   the profile) with the source in `<root>/<id>/` and the built page as its
+   sibling `<root>/<id>.html`. Confirm the location each time.
 3. **Gather.** Read every source in full.
    - Classify each link as repo, pipeline, doc, dashboard, or other. Do not
      assume a name is a repository.
    - Slide decks: text export drops hyperlink targets. Export to `.pptx` and
      read `ppt/slides/_rels/*.rels` for them. Pull out slide images when a
      diagram is worth embedding.
-   - For repos the path refers to, check whether they are cloned locally. List
+   - For repos the trail refers to, check whether they are cloned locally. List
      any that are missing and ask the user to clone them before continuing.
 4. **Verify.** Confirm that every file path, local-repo link target, and
    command exists and behaves as the task says. Run safe commands. Anything you
@@ -58,9 +58,9 @@ Do not recreate the tooling.
    modes, estimate, prereqs), goals, and the recommended order. Point out where
    you applied the profile and where a task is a stretch. Wait for the user to
    adjust it before writing files.
-6. **Write.** Create the path directory. Keep task ids short, lowercase and
-   stable. Put prose in `tasks/<id>.md`, structure and commands in `path.json`.
-7. **Build.** Run `python3 "$CAIRN_HOME/tools/build.py" <root>/<path-id> -o <root>/<path-id>.html`.
+6. **Write.** Create the trail directory. Keep task ids short, lowercase and
+   stable. Put prose in `tasks/<id>.md`, structure and commands in `trail.json`.
+7. **Build.** Run `python3 "$CAIRN_HOME/tools/build.py" <root>/<id> -o <root>/<id>.html`.
    Fix every reported error. Review warnings (oversized tasks, ordering) with
    the user. Report the output path and how to share it.
 8. **Update later.** Edit in place, keep ids stable, bump `version` when tasks
