@@ -12,7 +12,7 @@ Ask in natural language:
 
 ## What it does
 
-Reads your optional profile (`~/.config/cairn/profile.md`), interviews you, reads and verifies the sources, proposes an outline for approval, then writes `trail.json` and the task files and builds one self-contained HTML page. It flags repos referenced by the sources that are not cloned locally.
+Reads your optional profile (`~/.config/cairn/profile.md`), interviews you, reads and verifies the sources, proposes an outline for approval, then writes the trail source (`trail.json` and the task files) and builds one self-contained HTML page. Standalone trails get their own git repo and `CLAUDE.md`, so their sessions stay separate from work on cairn itself. It flags repos referenced by the sources that are not cloned locally.
 
 ## Requirements
 

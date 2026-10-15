@@ -2,6 +2,7 @@ import base64
 import contextlib
 import io
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -37,6 +38,11 @@ class BuildTest(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.dir = Path(self._tmp.name)
         self.addCleanup(self._tmp.cleanup)
+        self.data, self.state = self.dir / "xdg-data", self.dir / "xdg-state"
+        patcher = unittest.mock.patch.dict(
+            os.environ, {"XDG_DATA_HOME": str(self.data), "XDG_STATE_HOME": str(self.state)})
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def write(self, spec, files=None):
         (self.dir / "trail.json").write_text(json.dumps(spec))
@@ -306,7 +312,106 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertTrue(out.is_file())
 
-    def test_example_path_builds_without_warnings(self):
+    def run_main(self, *argv):
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = build.main([str(a) for a in argv])
+        return code, out.getvalue(), err.getvalue()
+
+    def registry(self):
+        return json.loads((self.state / "cairn" / "trails.json").read_text())
+
+    def other_source(self, trail_id="demo"):
+        src = self.dir / "other"
+        src.mkdir(exist_ok=True)
+        spec = good_spec()
+        spec["id"] = trail_id
+        (src / "trail.json").write_text(json.dumps(spec))
+        return src
+
+    def test_default_output_is_in_xdg_data_dir_and_registered(self):
+        self.write(good_spec())
+        code, _, _ = self.run_main(self.dir)
+        page = self.data / "cairn" / "pages" / "demo.html"
+        self.assertEqual(code, 0)
+        self.assertTrue(page.is_file())
+        entry = self.registry()["demo"]
+        self.assertEqual(entry["source"], str(self.dir.resolve()))
+        self.assertEqual(entry["output"], str(page.resolve()))
+        self.assertTrue(entry["built"])
+
+    def test_xdg_dir_ignores_relative_values(self):
+        with unittest.mock.patch.dict(os.environ, {"XDG_DATA_HOME": "relative/dir"}):
+            self.assertEqual(build.xdg_dir("XDG_DATA_HOME", ".local/share"), Path.home() / ".local/share")
+
+    def test_rebuild_same_source_updates_entry(self):
+        self.write(good_spec())
+        self.assertEqual(self.run_main(self.dir)[0], 0)
+        self.assertEqual(self.run_main(self.dir)[0], 0)
+        self.assertEqual(list(self.registry()), ["demo"])
+
+    def test_id_collision_with_another_existing_source_fails(self):
+        self.write(good_spec())
+        self.assertEqual(self.run_main(self.dir)[0], 0)
+        other = self.other_source()
+        code, _, err = self.run_main(other)
+        self.assertEqual(code, 1)
+        self.assertIn("already registered", err)
+        self.assertIn(str(self.dir.resolve()), err)
+        self.assertEqual(self.registry()["demo"]["source"], str(self.dir.resolve()))
+
+    def test_force_takes_over_id(self):
+        self.write(good_spec())
+        self.run_main(self.dir)
+        other = self.other_source()
+        self.assertEqual(self.run_main(other, "--force")[0], 0)
+        self.assertEqual(self.registry()["demo"]["source"], str(other.resolve()))
+
+    def test_moved_source_is_re_registered(self):
+        old = self.other_source()
+        self.assertEqual(self.run_main(old)[0], 0)
+        moved = self.dir / "moved"
+        old.rename(moved)
+        self.assertEqual(self.run_main(moved)[0], 0)
+        self.assertEqual(self.registry()["demo"]["source"], str(moved.resolve()))
+
+    def test_collision_does_not_write_page(self):
+        self.write(good_spec())
+        self.run_main(self.dir)
+        other = self.other_source()
+        out = self.dir / "other-out.html"
+        self.assertEqual(self.run_main(other, "-o", out)[0], 1)
+        self.assertFalse(out.exists())
+
+    def test_list(self):
+        code, out, _ = self.run_main("--list")
+        self.assertEqual((code, out.strip()), (0, "no trails registered"))
+        self.write(good_spec())
+        self.run_main(self.dir)
+        code, out, _ = self.run_main("--list")
+        self.assertEqual(code, 0)
+        self.assertTrue(out.startswith("demo\t" + str(self.dir.resolve())))
+
+    def test_trail_dir_required_without_list(self):
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            build.main([])
+
+    def test_corrupt_registry_is_an_error(self):
+        self.write(good_spec())
+        (self.state / "cairn").mkdir(parents=True)
+        (self.state / "cairn" / "trails.json").write_text("{nope")
+        code, _, err = self.run_main(self.dir)
+        self.assertEqual(code, 1)
+        self.assertIn("not valid JSON", err)
+
+    def test_big_page_warns(self):
+        self.write(good_spec())
+        with unittest.mock.patch.object(build, "BIG_PAGE_BYTES", 10):
+            code, _, err = self.run_main(self.dir)
+        self.assertEqual(code, 0)
+        self.assertIn("consider shrinking images", err)
+
+    def test_example_trail_builds_without_warnings(self):
         example = Path(__file__).resolve().parent.parent / "trails" / "example"
         if not (example / "trail.json").exists():
             self.skipTest("example trail not present")

@@ -5,7 +5,7 @@ test:
 	python3 -m unittest discover -s tools -p 'test_*.py'
 
 build:
-	python3 tools/build.py trails/example -o dist/example.html
+	XDG_STATE_HOME=$(CURDIR)/dist/state python3 tools/build.py trails/example -o dist/example.html
 
 # Needs Chrome (set CHROME=/path/to/binary if not at the macOS default).
 e2e: build

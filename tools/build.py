@@ -2,19 +2,27 @@
 """Validate a cairn trail directory and build it into one self-contained HTML file.
 
 Usage:
-    build.py TRAIL_DIR [-o OUTPUT.html]
+    build.py TRAIL_DIR [-o OUTPUT.html] [--force]
+    build.py --list
 
 TRAIL_DIR contains trail.json (or trail.yaml, which needs PyYAML), optional intro.md, tasks/<id>.md bodies and
 assets/. Relative images in markdown are inlined as data URIs. Without -o the
-output is dist/<trail id>.html next to this repository's runtime/.
+page is written to $XDG_DATA_HOME/cairn/pages/<trail id>.html (default ~/.local/share).
+
+Each successful build is recorded in $XDG_STATE_HOME/cairn/trails.json (default
+~/.local/state) so a trail can be found again from anywhere. Building a trail whose id is
+already registered to a different, existing directory fails unless --force is given.
+--list prints the registry.
 """
 
 import argparse
 import base64
 import json
 import mimetypes
+import os
 import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -27,6 +35,7 @@ MODES = ("read", "do", "explain")
 IMAGE_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
                ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml"}
 BIG_IMAGE_BYTES = 1_000_000
+BIG_PAGE_BYTES = 3_000_000
 TASK_KEYS = {"id", "section", "title", "modes", "estimate", "predict", "elaborate", "steps",
              "links", "modify", "explain", "prereqs", "body", "noteprompts", "answers"}
 # Prompts that can carry a hidden answer in a task's "answers" object.
@@ -376,23 +385,89 @@ def render(trail):
     return html.replace("/*CAIRN_TRAIL*/", blob)
 
 
+def xdg_dir(var, fallback):
+    """An XDG base directory: $var if it is an absolute path, else ~/<fallback>."""
+    value = os.environ.get(var, "")
+    return Path(value) if os.path.isabs(value) else Path.home() / fallback
+
+
+def default_output(trail_id):
+    return xdg_dir("XDG_DATA_HOME", ".local/share") / "cairn" / "pages" / f"{trail_id}.html"
+
+
+def registry_file():
+    return xdg_dir("XDG_STATE_HOME", ".local/state") / "cairn" / "trails.json"
+
+
+def load_registry():
+    file = registry_file()
+    if not file.is_file():
+        return {}
+    try:
+        return json.loads(file.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        raise TrailError([f"{file} is not valid JSON: {e}"])
+
+
+def check_registry(registry, trail_id, source, force):
+    """Refuse to reuse an id registered to another source directory that still exists."""
+    other = registry.get(trail_id, {}).get("source")
+    if other and not force and Path(other) != source and Path(other).is_dir():
+        raise TrailError([
+            f"trail id {trail_id!r} is already registered to {other}; this source is {source}. "
+            "Change the id, or pass --force to take it over (they would share a page and saved progress)"])
+
+
+def save_registry(registry, trail_id, source, output):
+    registry[trail_id] = {"source": str(source), "output": str(output),
+                          "built": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    file = registry_file()
+    file.parent.mkdir(parents=True, exist_ok=True)
+    file.write_text(json.dumps(registry, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def list_trails():
+    try:
+        registry = load_registry()
+    except TrailError as e:
+        print(f"error: {e.errors[0]}", file=sys.stderr)
+        return 1
+    if not registry:
+        print("no trails registered")
+    for trail_id, entry in sorted(registry.items()):
+        print(f"{trail_id}\t{entry['source']}\t{entry['output']}\t{entry['built']}")
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("trail_dir")
+    ap.add_argument("trail_dir", nargs="?")
     ap.add_argument("-o", "--output")
+    ap.add_argument("--force", action="store_true", help="take over a trail id registered to another directory")
+    ap.add_argument("--list", action="store_true", help="list registered trails and exit")
     args = ap.parse_args(argv)
+    if args.list:
+        return list_trails()
+    if not args.trail_dir:
+        ap.error("TRAIL_DIR is required (or use --list)")
     try:
         trail, warnings = validate_and_load(args.trail_dir)
         html = render(trail)
+        source = Path(args.trail_dir).resolve()
+        registry = load_registry()
+        check_registry(registry, trail["id"], source, args.force)
     except TrailError as e:
         for err in e.errors:
             print(f"error: {err}", file=sys.stderr)
         return 1
+    if len(html.encode("utf-8")) > BIG_PAGE_BYTES:
+        warnings.append(f"page is {len(html) // 1000} KB; consider shrinking images")
     for w in warnings:
         print(f"warning: {w}", file=sys.stderr)
-    out = Path(args.output) if args.output else ROOT / "dist" / f"{trail['id']}.html"
+    out = Path(args.output) if args.output else default_output(trail["id"])
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding="utf-8")
+    save_registry(registry, trail["id"], source, out.resolve())
     print(f"wrote {out} ({len(trail['tasks'])} tasks, {len(trail['goals'])} goals, {len(html) // 1000} KB)")
     return 0
 

@@ -26,7 +26,8 @@ A cairn is a stack of stones that marks a trail. Each task you finish leaves one
 make test                          # unit tests (needs node 22+ and python3)
 make build                         # builds trails/example -> dist/example.html
 open dist/example.html
-python3 tools/build.py path/to/my-trail -o my-trail.html
+python3 tools/build.py path/to/my-trail     # page lands in ~/.local/share/cairn/pages/<id>.html
+python3 tools/build.py --list               # every trail you have built
 ```
 
 `make e2e` drives headless Chrome through the whole UI (needs Chrome; set `CHROME=` if it is not at the macOS default location).
@@ -51,6 +52,20 @@ my-trail/
 ```
 
 See [docs/trail-format.md](docs/trail-format.md) for the format and [trails/example](trails/example) for a small working example. The build validates everything (ids, references, cycles, modes, images) and lists every problem at once.
+
+## Where things live
+
+A trail source can be a standalone directory (its own git repo and Claude project, `~/trails/<id>/` by default) or a subdirectory of another repo (for example `docs/trail/`). Cairn's own files follow the XDG base directories:
+
+| What | Where | Default |
+|---|---|---|
+| Profile (`profile.md`) | `$XDG_CONFIG_HOME/cairn/` | `~/.config/cairn/` |
+| Trail pages (`<id>.html`) | `$XDG_DATA_HOME/cairn/pages/` | `~/.local/share/cairn/pages/` |
+| Registry (`trails.json`: id, source, page, last build) | `$XDG_STATE_HOME/cairn/` | `~/.local/state/cairn/` |
+
+Pass `-o` to write a page elsewhere. The registry is how the skill finds a trail from any directory, and it refuses two different sources with the same id (they would share a page and saved progress); `--force` overrides.
+
+Work on a trail and work on cairn itself belong in different sessions: start trail sessions in the trail's directory and cairn sessions in the cairn checkout.
 
 ## The skill
 

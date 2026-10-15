@@ -39,10 +39,19 @@ Do not recreate the tooling.
    it does not exist, ask a few questions and offer to save one. Never record
    learning-style or modality preferences.
 2. **Intake.** Ask for: the topic, the sources, who the trail is for (just them
-   or shared), concrete goals ("be able to ..."), the time budget, and where to
-   write output. Suggest a root (default `~/learning-paths`, or the root set in
-   the profile) with the source in `<root>/<id>/` and the built page as its
-   sibling `<root>/<id>.html`. Confirm the location each time.
+   or shared), concrete goals ("be able to ..."), and the time budget. Then ask
+   where the trail source lives, and confirm the location each time:
+   - **Standalone** (default, and right when the topic spans several repos):
+     `<root>/<id>/`, with the root from the profile or `~/trails`. Scaffold it
+     as its own project: `git init`, a `.gitignore`, and a `CLAUDE.md` from
+     [references/standalone-claude.md](references/standalone-claude.md). Tell
+     the user to start future sessions for this trail from that directory.
+   - **In a host repo** (the trail documents one repo): a subdirectory the user
+     picks, such as `docs/trail/`. Add no `CLAUDE.md` or git scaffolding; the
+     host repo owns those, and its commit conventions apply.
+   The built page is not written next to the source. `build.py` puts it in
+   `$XDG_DATA_HOME/cairn/pages/<id>.html` (default `~/.local/share/cairn/pages`)
+   and records the trail in a registry, so every page is in one place.
 3. **Gather.** Read every source in full.
    - Classify each link as repo, pipeline, doc, dashboard, or other. Do not
      assume a name is a repository.
@@ -60,12 +69,25 @@ Do not recreate the tooling.
    adjust it before writing files.
 6. **Write.** Create the trail directory. Keep task ids short, lowercase and
    stable. Put prose in `tasks/<id>.md`, structure and commands in `trail.json`.
-7. **Build.** Run `python3 "$CAIRN_HOME/tools/build.py" <root>/<id> -o <root>/<id>.html`.
-   Fix every reported error. Review warnings (oversized tasks, ordering) with
-   the user. Report the output path and how to share it.
-8. **Update later.** Edit in place, keep ids stable, bump `version` when tasks
-   are added, removed or renamed, and rebuild to the same sibling `.html`. Warn before renaming an id:
-   progress saved under the old id is dropped.
+7. **Build.** Run `python3 "$CAIRN_HOME/tools/build.py" <trail source dir>`.
+   Fix every reported error. Review warnings (oversized tasks or images, page
+   size, ordering) with the user. Report the page path the build prints and how
+   to share it. An id already registered to a different directory is an error:
+   pick a new id rather than passing `--force`, unless the user says the old
+   directory is abandoned.
+8. **Update later.** If the user is not in the trail's directory, find it with
+   `python3 "$CAIRN_HOME/tools/build.py" --list`. Edit in place, keep ids
+   stable, bump `version` when tasks are added, removed or renamed, and
+   rebuild. Warn before renaming an id: progress saved under the old id is
+   dropped.
+
+## Session boundary
+
+Work on a trail and work on cairn itself happen in different sessions. In a
+trail session, do not edit files under `$CAIRN_HOME` (runtime, build, skill,
+docs). When the trail needs a framework change, describe it (trail id, what,
+why) and tell the user to make it in a session in the cairn checkout. Fixes to the
+trail's own content stay in the trail session.
 
 ## Sharing
 

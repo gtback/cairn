@@ -51,7 +51,7 @@ A YAML build of a trail is byte-identical to the build of the same trail in JSON
 
 | Field | Required | Notes |
 |---|---|---|
-| `id` | yes | `[a-z0-9-]{1,24}`. Keys saved progress in the browser. |
+| `id` | yes | `[a-z0-9-]{1,24}`. Keys saved progress in the browser. Renaming it drops saved progress, and it must be unique among your built trails (the build registry checks). |
 | `title` | yes | |
 | `version` | no (1) | Integer. Bump it when tasks are added, removed, or renamed. |
 | `intro` | no | A `.md` filename relative to the trail directory, or literal markdown. |
