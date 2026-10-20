@@ -17,7 +17,7 @@ allowed-tools: Bash(python3:*) Read Write
 
 ## Goal
 
-Produce a trail directory (`trail.json`, `intro.md`, `tasks/*.md`, `assets/`) and
+Produce a trail directory (`trail.yaml`, `intro.md`, `tasks/*.md`, `assets/`) and
 build it into one HTML file with the cairn runtime. The result must be accurate
 (every link, path and command verified), small enough tasks to finish, and
 shaped by learning research. Read these before drafting:
@@ -68,7 +68,7 @@ Do not recreate the tooling.
    you applied the profile and where a task is a stretch. Wait for the user to
    adjust it before writing files.
 6. **Write.** Create the trail directory. Keep task ids short, lowercase and
-   stable. Put prose in `tasks/<id>.md`, structure and commands in `trail.json`.
+   stable. Put prose in `tasks/<id>.md`, structure and commands in `trail.yaml`.
 7. **Build.** Run `python3 "$CAIRN_HOME/tools/build.py" <trail source dir>`.
    Fix every reported error. Review warnings (oversized tasks or images, page
    size, ordering) with the user. Report the page path the build prints and how

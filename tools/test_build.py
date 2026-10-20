@@ -413,8 +413,9 @@ class BuildTest(unittest.TestCase):
 
     def test_example_trail_builds_without_warnings(self):
         example = Path(__file__).resolve().parent.parent / "trails" / "example"
-        if not (example / "trail.json").exists():
+        if not (example / "trail.yaml").exists():
             self.skipTest("example trail not present")
+        self.yaml_available()
         _, warnings = build.validate_and_load(example)
         self.assertEqual(warnings, [])
 

@@ -2,9 +2,9 @@
 
 ## What goes where
 
-- Structure file (`trail.json`, or `trail.yaml` if the user prefers hand-editing and has PyYAML): anything the page treats as an item. That is commands (they get a Copy button), steps, prompts, links, estimates, prereqs, and short answers (one to three sentences).
+- Structure file (`trail.yaml`, or `trail.json` if PyYAML is not available): anything the page treats as an item. That is commands (they get a Copy button), steps, prompts, links, estimates, prereqs, and short answers (one to three sentences).
 - `tasks/<id>.md`: prose someone reads. That is explanatory paragraphs, images, diagrams, and answers long enough to need several paragraphs or a code block.
-- Default to `trail.json`. Write YAML only when asked: it has no dependency, and the build output is identical.
+- Default to `trail.yaml`: it is easier to hand-edit (block scalars for commands and long prompts, comments). Write `trail.json` only if the user asks or PyYAML is not installed; the build output is identical.
 
 ## Sizing
 

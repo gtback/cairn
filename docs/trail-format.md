@@ -4,15 +4,15 @@ A trail is a directory that `tools/build.py` turns into one HTML file. This page
 
 ```
 my-trail/
-  trail.json
-  intro.md          optional (referenced from trail.json)
+  trail.yaml
+  intro.md          optional (referenced from trail.yaml)
   tasks/<id>.md     optional prose per task
   assets/*          images used by markdown
 ```
 
-## trail.json or trail.yaml
+## trail.yaml or trail.json
 
-The structure file is `trail.json`, or `trail.yaml` / `trail.yml` if you prefer to edit by hand. Use exactly one. The fields are identical; this page shows JSON.
+The structure file is `trail.yaml` (or `trail.yml`), or `trail.json` for compatibility. Use exactly one. The fields are identical; this page shows YAML.
 
 YAML needs PyYAML (`pip install pyyaml`); the build says so if it is missing, and JSON needs nothing beyond Python. YAML is loaded strictly: only `true` and `false` are booleans (so `on`, `no` and `yes` stay strings, which matters for ids), dates stay strings, and duplicate keys are errors. Block scalars drop their trailing newline, so a `|` block is a clean command. Comments are allowed.
 
@@ -33,20 +33,21 @@ YAML needs PyYAML (`pip install pyyaml`); the build says so if it is missing, an
 
 A YAML build of a trail is byte-identical to the build of the same trail in JSON.
 
-## trail.json
+## Top level
 
-```json
-{
-  "id": "learn-jq",
-  "title": "Learn jq",
-  "version": 1,
-  "intro": "intro.md",
-  "sources": [{"label": "jq manual", "url": "https://jqlang.github.io/jq/manual/"}],
-  "sections": [{"id": "start", "title": "Getting started"}],
-  "tasks": [ ... ],
-  "goals": [{"id": "extract", "title": "...", "description": "...", "tasks": ["fields"]}],
-  "recommended": ["install", "identity", "fields"]
-}
+```yaml
+id: learn-jq
+title: Learn jq
+version: 1
+intro: intro.md
+sources:
+  - {label: jq manual, url: "https://jqlang.github.io/jq/manual/"}
+sections:
+  - {id: start, title: Getting started}
+tasks: [...]
+goals:
+  - {id: extract, title: "...", description: "...", tasks: [fields]}
+recommended: [install, identity, fields]
 ```
 
 | Field | Required | Notes |
@@ -65,25 +66,24 @@ A YAML build of a trail is byte-identical to the build of the same trail in JSON
 
 A task is a unit of 5–60 minutes of learning. The build warns above 60 minutes; split large tasks. A task can bundle several commands ("set up this repo") or be a single reading.
 
-```json
-{
-  "id": "select",
-  "section": "filters",
-  "title": "Filter lists with select and map",
-  "modes": ["do", "explain"],
-  "estimate": "20m",
-  "prereqs": ["fields"],
-  "predict": "What do you expect this to print?",
-  "elaborate": "Why does ... ?",
-  "steps": [{"text": "Keep only ok items.", "predict": "How many survive?", "cmd": "jq ..."}],
-  "links": [{"label": "Manual", "url": "https://..."}],
-  "modify": "Change the filter so it keeps the opposite items.",
-  "explain": "Explain the difference between `.[]` and `map(...)`.",
-  "answers": {
-    "modify": "`map(select(.ok | not))`",
-    "explain": "`.[]` streams the elements; `map(...)` collects results into an array."
-  }
-}
+```yaml
+id: select
+section: filters
+title: Filter lists with select and map
+modes: [do, explain]
+estimate: 20m
+prereqs: [fields]
+predict: What do you expect this to print?
+elaborate: Why does ... ?
+steps:
+  - {text: Keep only ok items., predict: "How many survive?", cmd: jq ...}
+links:
+  - {label: Manual, url: "https://..."}
+modify: Change the filter so it keeps the opposite items.
+explain: Explain the difference between `.[]` and `map(...)`.
+answers:
+  modify: "`map(select(.ok | not))`"
+  explain: "`.[]` streams the elements; `map(...)` collects results into an array."
 ```
 
 | Field | Required | Notes |

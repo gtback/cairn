@@ -5,7 +5,7 @@ Usage:
     build.py TRAIL_DIR [-o OUTPUT.html] [--force]
     build.py --list
 
-TRAIL_DIR contains trail.json (or trail.yaml, which needs PyYAML), optional intro.md, tasks/<id>.md bodies and
+TRAIL_DIR contains trail.yaml (or trail.json, which needs no PyYAML), optional intro.md, tasks/<id>.md bodies and
 assets/. Relative images in markdown are inlined as data URIs. Without -o the
 page is written to $XDG_DATA_HOME/cairn/pages/<trail id>.html (default ~/.local/share).
 
@@ -76,7 +76,7 @@ def read_text(file):
     return file.read_text(encoding="utf-8")
 
 
-SPEC_NAMES = ("trail.json", "trail.yaml", "trail.yml")
+SPEC_NAMES = ("trail.yaml", "trail.yml", "trail.json")
 
 
 def load_yaml(file):
@@ -85,7 +85,7 @@ def load_yaml(file):
     try:
         import yaml
     except ImportError:
-        raise TrailError([f"{file.name} needs PyYAML: pip install pyyaml (or use trail.json)"])
+        raise TrailError([f"{file.name} needs PyYAML: pip install pyyaml (or use trail.json, which needs nothing extra)"])
 
     class Loader(yaml.SafeLoader):
         pass
@@ -125,10 +125,10 @@ def load_yaml(file):
 
 
 def load_spec(trail_dir):
-    """Return (spec file, parsed spec) from trail.json or trail.yaml/.yml (exactly one)."""
+    """Return (spec file, parsed spec) from trail.yaml/.yml or trail.json (exactly one)."""
     found = [trail_dir / n for n in SPEC_NAMES if (trail_dir / n).is_file()]
     if not found:
-        raise TrailError([f"{trail_dir / 'trail.json'} not found (trail.yaml is also accepted)"])
+        raise TrailError([f"{trail_dir / 'trail.yaml'} not found (trail.json is also accepted)"])
     if len(found) > 1:
         raise TrailError(["found " + " and ".join(f.name for f in found) + "; keep only one"])
     file = found[0]

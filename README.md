@@ -35,7 +35,7 @@ python3 tools/build.py --list               # every trail you have built
 ## Terms
 
 - **Trail**: a learning plan. It covers both of the next two.
-- **Trail source**: the directory you author (`trail.json` or `trail.yaml`, `intro.md`, `tasks/`, `assets/`).
+- **Trail source**: the directory you author (`trail.yaml` or `trail.json`, `intro.md`, `tasks/`, `assets/`).
 - **Trail page**: the single self-contained HTML file built from a trail source.
 
 ## Writing a trail
@@ -44,8 +44,8 @@ A trail is a directory:
 
 ```
 my-trail/
-  trail.json      structure: tasks, modes, prereqs, goals, recommended order
-                 (or trail.yaml, which needs PyYAML)
+  trail.yaml      structure: tasks, modes, prereqs, goals, recommended order
+                 (needs PyYAML; trail.json also works and needs nothing extra)
   intro.md       optional intro
   tasks/<id>.md  optional prose for each task
   assets/        images referenced from markdown
